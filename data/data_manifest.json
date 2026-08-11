@@ -1,0 +1,30 @@
+{
+  "provider": "ths_finance",
+  "source_api": "/api/fund/market/historical",
+  "base_url": "https://fuyao.aicubes.cn",
+  "fetched_at": "2026-07-20T02:36:38.317676+00:00",
+  "cache_used": false,
+  "start_date": "2023-01-03",
+  "end_date": "2026-07-17",
+  "completed_through": "2026-07-17",
+  "interval": "1d",
+  "adjust": "none",
+  "symbols": [
+    "510300.SH",
+    "510500.SH",
+    "159915.SZ",
+    "512100.SH"
+  ],
+  "rows": {
+    "510300.SH": 856,
+    "510500.SH": 856,
+    "159915.SZ": 856,
+    "512100.SH": 856
+  },
+  "request_ids": {
+    "510300.SH": "13069f6ac9ec4517b818bc4590c9f2a5",
+    "510500.SH": "90d046f41f5c42f0a80cc91d0de4d88d",
+    "159915.SZ": "782cca331208456f96bb3320a050f4e5",
+    "512100.SH": "b1d58fee5e564ae69df66d3d8ba23032"
+  }
+}

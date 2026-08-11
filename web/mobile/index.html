@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#080b10" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="盘古天机" />
+  <meta name="description" content="盘古·天机 Pangu V2 移动投资助手" />
+  <title>盘古·天机｜移动投资助手</title>
+  <link rel="manifest" href="/mobile/manifest.webmanifest" />
+  <link rel="icon" href="/mobile/icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/mobile/mobile.css?v=20260809-3" />
+</head>
+<body>
+  <a class="skip-link" href="#mobileMain">跳到主要内容</a>
+
+  <header class="mobile-header">
+    <button id="backButton" class="icon-button header-back is-hidden" type="button" aria-label="返回上一页">‹</button>
+    <a class="mobile-brand" href="#dashboard" aria-label="盘古天机移动首页">
+      <span class="brand-orbit" aria-hidden="true">机</span>
+      <span><strong>盘古·天机</strong><small>Pangu Mobile Assistant</small></span>
+    </a>
+    <div class="header-actions">
+      <button id="sessionButton" class="session-button" type="button" aria-label="查看移动设备连接状态"><span id="connectionDot" class="connection-dot is-loading" aria-hidden="true"></span><span id="sessionLabel">连接中</span></button>
+      <button id="notificationButton" class="icon-button notification-button" type="button" aria-label="打开通知中心，0条未读">
+        <span aria-hidden="true">◎</span><b id="unreadBadge" class="count-badge is-hidden">0</b>
+      </button>
+    </div>
+  </header>
+
+  <main id="mobileMain" class="mobile-shell">
+    <section id="offlineBanner" class="status-banner status-warning is-hidden" role="alert">
+      <strong>暂时无法连接本地服务</strong>
+      <span id="offlineMessage">正在使用最近一次页面状态，请确认电脑端 Pangu 后端已启动。</span>
+      <button id="retryButton" class="text-button" type="button">重试</button>
+    </section>
+
+    <section id="safetyBanner" class="safety-banner" aria-live="polite">
+      <span class="safety-dot" aria-hidden="true"></span>
+      <span><strong>投资辅助模式</strong><small id="safetyText">移动端只读 · 不能创建任何订单（含模拟/实盘）</small></span>
+      <span class="safety-lock">READ ONLY</span>
+    </section>
+
+    <section id="view-dashboard" class="mobile-view is-active" data-view="dashboard" aria-labelledby="dashboardTitle">
+      <header class="page-intro">
+        <div><p id="todayLabel" class="eyebrow">今日投资驾驶舱</p><h1 id="dashboardTitle">早上好</h1></div>
+        <button class="round-button" type="button" data-refresh-view="dashboard" aria-label="刷新投资驾驶舱">↻</button>
+      </header>
+
+      <article class="hero-card">
+        <div class="hero-topline"><span id="marketStatus" class="market-pill market-neutral">市场状态待更新</span><time id="dashboardAsOf">—</time></div>
+        <p>账户权益</p>
+        <strong id="dashboardEquity" class="hero-value">—</strong>
+        <div class="hero-change"><span>今日收益</span><b id="dashboardDailyPnl">—</b><small id="dashboardDailyReturn">—</small></div>
+        <div class="hero-meta">
+          <div><span>可用现金</span><b id="dashboardCash">—</b></div>
+          <div><span>持仓市值</span><b id="dashboardMarketValue">—</b></div>
+          <div><span>当前仓位</span><b id="dashboardExposure">—</b></div>
+        </div>
+      </article>
+
+      <div class="metric-pair section-gap">
+        <article class="metric-card risk-card">
+          <header><span>组合风险</span><b id="riskLevel" class="tone-neutral">—</b></header>
+          <strong id="riskScore">—</strong><small>/ 100</small>
+          <div class="progress-track"><i id="riskProgress"></i></div>
+          <p id="riskSummary">等待 Risk Center 证据</p>
+        </article>
+        <article class="metric-card exposure-card">
+          <header><span>仓位状态</span><b id="exposureState">—</b></header>
+          <div class="exposure-ring" aria-hidden="true"><span id="exposureRingValue">—</span></div>
+          <p>建议 <b id="targetExposure">—</b></p>
+        </article>
+      </div>
+
+      <article class="ai-brief-card section-gap">
+        <header><span class="ai-spark" aria-hidden="true">天</span><span><strong>天机今日摘要</strong><small id="aiBriefSource">基于已存档投资证据</small></span></header>
+        <p id="aiBrief">等待后端生成证据型摘要。</p>
+        <button class="card-link" type="button" data-route="assistant">继续问天机 <span>→</span></button>
+      </article>
+
+      <section class="section-gap" aria-labelledby="focusTitle">
+        <div class="section-heading"><div><p class="eyebrow">TODAY FOCUS</p><h2 id="focusTitle">今日关注</h2></div><button class="text-button" type="button" data-route="stock">查看研究</button></div>
+        <div id="focusList" class="focus-list"><div class="empty-card">暂无可用候选证据</div></div>
+      </section>
+
+      <section class="section-gap" aria-labelledby="dashboardReportTitle">
+        <div class="section-heading"><div><p class="eyebrow">DAILY OS</p><h2 id="dashboardReportTitle">最新报告</h2></div><button class="text-button" type="button" data-route="reports">全部报告</button></div>
+        <div id="dashboardReport" class="report-preview"><div class="empty-card">今日尚未生成运营报告</div></div>
+      </section>
+    </section>
+
+    <section id="view-portfolio" class="mobile-view" data-view="portfolio" aria-labelledby="portfolioTitle" hidden>
+      <header class="page-intro">
+        <div><p class="eyebrow">PORTFOLIO &amp; RISK</p><h1 id="portfolioTitle">我的组合</h1></div>
+        <button class="round-button" type="button" data-refresh-view="portfolio" aria-label="刷新组合">↻</button>
+      </header>
+      <article class="portfolio-summary">
+        <div><span>账户权益</span><strong id="portfolioEquity">—</strong><small id="portfolioValuedAt">估值时点待更新</small></div>
+        <div class="summary-grid">
+          <span><small>累计盈亏</small><b id="portfolioPnl">—</b></span>
+          <span><small>最大回撤</small><b id="portfolioDrawdown">—</b></span>
+          <span><small>风险评分</small><b id="portfolioRisk">—</b></span>
+        </div>
+      </article>
+      <section class="section-gap" aria-labelledby="positionsTitle">
+        <div class="section-heading"><div><p class="eyebrow">POSITIONS</p><h2 id="positionsTitle">当前持仓</h2></div><span id="positionCount" class="count-label">0 只</span></div>
+        <div id="positionList" class="position-list"><div class="empty-card">当前没有模拟持仓</div></div>
+      </section>
+      <section class="section-gap" aria-labelledby="exposureTitle">
+        <div class="section-heading"><div><p class="eyebrow">EXPOSURE</p><h2 id="exposureTitle">风险暴露</h2></div></div>
+        <article class="panel-card"><div id="industryExposure" class="bar-list"><p class="muted">等待行业暴露证据。</p></div></article>
+      </section>
+    </section>
+
+    <section id="view-stock" class="mobile-view" data-view="stock" aria-labelledby="stockTitle" hidden>
+      <header class="page-intro stock-intro">
+        <div><p class="eyebrow">STOCK RESEARCH</p><h1 id="stockTitle">股票研究</h1><small id="stockSymbol">选择今日候选股查看</small></div>
+        <button class="round-button" type="button" data-refresh-view="stock" aria-label="刷新股票详情">↻</button>
+      </header>
+      <label class="search-field"><span class="sr-only">输入股票代码</span><input id="stockSearchInput" type="search" inputmode="text" autocomplete="off" placeholder="输入沪深股票代码" maxlength="12" /><button id="stockSearchButton" type="button">查看</button></label>
+      <article id="stockScoreCard" class="stock-score-card section-gap">
+        <div class="score-orb"><strong id="stockScore">—</strong><small>综合评分</small></div>
+        <div><span id="stockRank" class="rank-label">暂无排名</span><strong id="stockPrice">—</strong><small id="stockChange">最新价格待更新</small></div>
+      </article>
+      <section class="section-gap" aria-labelledby="factorTitle">
+        <div class="section-heading"><div><p class="eyebrow">FACTOR SCORE</p><h2 id="factorTitle">因子拆解</h2></div></div>
+        <article class="panel-card"><div id="factorList" class="factor-list"><p class="muted">选择股票后展示已存档因子。</p></div></article>
+      </section>
+      <section class="section-gap" aria-labelledby="stockRiskTitle">
+        <div class="section-heading"><div><p class="eyebrow">RISK EVIDENCE</p><h2 id="stockRiskTitle">风险与退出条件</h2></div></div>
+        <article id="stockRiskCard" class="panel-card narrative-card"><p>等待单股风险证据。</p></article>
+      </section>
+      <article class="ai-brief-card section-gap">
+        <header><span class="ai-spark" aria-hidden="true">天</span><span><strong>AI 证据解释</strong><small>不生成任何订单（含模拟/实盘）</small></span></header>
+        <p id="stockAiExplanation">等待研究证据。</p>
+        <button id="askAboutStockButton" class="card-link" type="button">询问这只股票 <span>→</span></button>
+      </article>
+    </section>
+
+    <section id="view-assistant" class="mobile-view assistant-view" data-view="assistant" aria-labelledby="assistantTitle" hidden>
+      <header class="page-intro">
+        <div><p class="eyebrow">EVIDENCE-FIRST COPILOT</p><h1 id="assistantTitle">盘古 AI 投资顾问</h1></div>
+        <span id="assistantState" class="state-pill">证据只读</span>
+      </header>
+      <div class="quick-prompts" aria-label="AI快捷问题">
+        <button type="button" data-prompt="请分析我的当前持仓">分析持仓</button>
+        <button type="button" data-prompt="请总结当前组合风险">查看风险</button>
+        <button type="button" data-prompt="请生成今日投资复盘">今日复盘</button>
+        <button type="button" data-prompt="请解释最新研究结论的证据">为什么关注？</button>
+      </div>
+      <div id="chatThread" class="chat-thread" aria-live="off">
+        <article class="chat-message assistant"><span class="chat-avatar">机</span><div><p>我只使用 Data Center、Research Snapshot 和 Risk Snapshot 中的已存档证据回答，不会修改策略、风控，也不能创建任何订单（含模拟/实盘）。</p></div></article>
+      </div>
+      <div id="chatAnnouncer" class="sr-only" role="status" aria-live="polite"></div>
+      <form id="chatForm" class="chat-composer">
+        <label><span class="sr-only">询问盘古天机</span><textarea id="chatInput" rows="1" maxlength="1000" placeholder="问持仓、风险或研究证据…"></textarea></label>
+        <button id="chatSubmit" type="submit" aria-label="发送问题">↑</button>
+      </form>
+      <p class="composer-note">AI 回答是投资辅助解释，不是收益保证或自动交易指令。</p>
+    </section>
+
+    <section id="view-reports" class="mobile-view" data-view="reports" aria-labelledby="reportsTitle" hidden>
+      <header class="page-intro">
+        <div><p class="eyebrow">INVESTMENT REPORTS</p><h1 id="reportsTitle">投资报告</h1></div>
+        <button class="round-button" type="button" data-refresh-view="reports" aria-label="刷新报告">↻</button>
+      </header>
+      <div class="segmented-control" role="group" aria-label="报告类型筛选">
+        <button class="is-active" type="button" data-report-filter="all" aria-pressed="true">全部</button>
+        <button type="button" data-report-filter="morning_report" aria-pressed="false">晨报</button>
+        <button type="button" data-report-filter="intraday_monitor" aria-pressed="false">盘中</button>
+        <button type="button" data-report-filter="closing_review" aria-pressed="false">收盘</button>
+        <button type="button" data-report-filter="weekly_report" aria-pressed="false">周报</button>
+      </div>
+      <div id="reportList" class="report-list section-gap"><div class="empty-card">暂无投资运营报告</div></div>
+    </section>
+
+    <section id="view-journal" class="mobile-view" data-view="journal" aria-labelledby="journalTitle" hidden>
+      <header class="page-intro">
+        <div><p class="eyebrow">INVESTMENT MEMORY</p><h1 id="journalTitle">投资日志</h1></div>
+        <button id="newJournalButton" class="primary-mini-button" type="button">+记录</button>
+      </header>
+      <div class="journal-stats">
+        <span><small>本月记录</small><strong id="journalMonthCount">0</strong></span>
+        <span><small>待验证</small><strong id="journalPendingCount">0</strong></span>
+        <span><small>已复盘</small><strong id="journalReviewedCount">0</strong></span>
+      </div>
+      <div id="journalList" class="journal-list section-gap"><div class="empty-card">还没有投资日志。记录理由，让未来的你能验证当时的决策。</div></div>
+    </section>
+  </main>
+
+  <nav class="bottom-nav" aria-label="移动端主导航">
+    <button class="is-active" type="button" data-route="dashboard" aria-current="page"><span aria-hidden="true">◈</span><small>首页</small></button>
+    <button type="button" data-route="portfolio"><span aria-hidden="true">◫</span><small>组合</small></button>
+    <button type="button" data-route="stock"><span aria-hidden="true">◌</span><small>研究</small></button>
+    <button type="button" data-route="assistant"><span aria-hidden="true">✷</span><small>天机</small></button>
+    <button type="button" data-route="journal"><span aria-hidden="true">≡</span><small>日志</small></button>
+  </nav>
+
+  <dialog id="notificationSheet" class="bottom-sheet" aria-labelledby="notificationDialogTitle">
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <header><div><p class="eyebrow">NOTIFICATIONS</p><h2 id="notificationDialogTitle">通知中心</h2></div><button class="icon-button" type="button" data-close-dialog="notificationSheet" aria-label="关闭通知">×</button></header>
+    <div class="segmented-control compact" role="group" aria-label="通知筛选"><button class="is-active" type="button" data-notification-filter="all" aria-pressed="true">全部</button><button type="button" data-notification-filter="unread" aria-pressed="false">未读</button><button type="button" data-notification-filter="critical" aria-pressed="false">重要</button></div>
+    <div id="notificationList" class="notification-list"><div class="empty-card">暂无投资通知</div></div>
+  </dialog>
+
+  <dialog id="pairingDialog" class="bottom-sheet pairing-sheet" aria-labelledby="pairingDialogTitle">
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <header><div><p class="eyebrow">DEVICE PAIRING</p><h2 id="pairingDialogTitle">连接盘古本地服务</h2></div><button class="icon-button" type="button" data-close-dialog="pairingDialog" aria-label="关闭配对">×</button></header>
+    <p id="pairingDescription" class="sheet-description">移动设备需用电脑端生成的一次性配对码连接。令牌只保存在当前浏览器会话。</p>
+    <section id="loopbackPairing" class="pairing-panel is-hidden">
+      <p>当前为本机页面，可生成一次性配对码，再在手机上输入。</p>
+      <button id="createPairingCodeButton" class="primary-button" type="button">生成一次性配对码</button>
+      <div id="pairingCodeResult" class="pairing-code is-hidden"><strong id="pairingCode">—</strong><small id="pairingExpires">请在有效期内使用</small></div>
+    </section>
+    <form id="pairDeviceForm" class="pairing-panel is-hidden">
+      <input id="pairingIdInput" type="hidden" />
+      <label><span>一次性配对码</span><input id="pairingCodeInput" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="12" required placeholder="请输入电脑端显示的配对码" /></label>
+      <label><span>设备名称</span><input id="deviceNameInput" type="text" maxlength="80" value="我的手机" required /></label>
+      <button id="pairDeviceButton" class="primary-button" type="submit">安全连接</button>
+    </form>
+    <section id="pairedSession" class="pairing-panel is-hidden">
+      <div class="paired-state"><span class="safety-dot" aria-hidden="true"></span><div><strong>当前设备已配对</strong><small id="sessionDetail">令牌仅对当前会话有效</small></div></div>
+      <button id="forgetSessionButton" class="secondary-button" type="button">断开当前会话</button>
+    </section>
+  </dialog>
+
+  <dialog id="reportDialog" class="bottom-sheet report-sheet" aria-labelledby="reportDialogTitle">
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <header><div><p id="reportDialogType" class="eyebrow">INVESTMENT REPORT</p><h2 id="reportDialogTitle">投资报告</h2></div><button class="icon-button" type="button" data-close-dialog="reportDialog" aria-label="关闭报告">×</button></header>
+    <div id="reportDialogBody" class="report-body"></div>
+    <div id="reportEvidence" class="evidence-list"></div>
+  </dialog>
+
+  <dialog id="journalDialog" class="bottom-sheet journal-sheet" aria-labelledby="journalDialogTitle">
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <header><div><p class="eyebrow">DECISION JOURNAL</p><h2 id="journalDialogTitle">记录投资理由</h2></div><button class="icon-button" type="button" data-close-dialog="journalDialog" aria-label="关闭日志表单">×</button></header>
+    <form id="journalForm" class="journal-form">
+      <label><span>记录类型</span><select id="journalAction" required><option value="general">观察</option><option value="buy_reason">买入理由</option><option value="sell_reason">卖出理由</option><option value="review">复盘结果</option></select></label>
+      <label><span>股票代码（可选）</span><input id="journalSymbol" type="text" maxlength="12" placeholder="例如 600519.SH" /></label>
+      <label><span>日志标题</span><input id="journalEntryTitle" type="text" maxlength="120" placeholder="留空则根据类型和股票生成" /></label>
+      <label><span>决策与理由</span><textarea id="journalReason" rows="4" maxlength="2000" required placeholder="记录当时看到的证据、预期与失效条件"></textarea></label>
+      <label><span>计划复盘日期（可选）</span><input id="journalReviewDate" type="date" /></label>
+      <div class="journal-form-actions"><button id="journalArchiveButton" class="danger-button is-hidden" type="button">归档记录</button><button id="journalSubmit" class="primary-button" type="submit">保存到投资记忆</button></div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="/mobile/mobile.js?v=20260809-2"></script>
+</body>
+</html>

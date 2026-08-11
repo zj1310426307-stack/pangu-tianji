@@ -1,0 +1,20 @@
+{
+  "name": "盘古·天机移动投资助手",
+  "short_name": "盘古天机",
+  "description": "Pangu V2 只读移动投资助手",
+  "lang": "zh-CN",
+  "start_url": "/mobile/",
+  "scope": "/mobile/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#070a0e",
+  "theme_color": "#080b10",
+  "icons": [
+    {
+      "src": "/mobile/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
