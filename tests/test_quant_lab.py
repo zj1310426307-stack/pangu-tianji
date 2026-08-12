@@ -24,6 +24,7 @@ from ashare_agent.quant_lab.contracts import (
     StrategyLifecycleState,
     ValidationStatus,
 )
+from tests._protected_hash import sha256_normalized_source
 from ashare_agent.quant_lab.dataset_validator import DatasetValidator
 from ashare_agent.quant_lab.exceptions import (
     ArtifactIntegrityError,
@@ -354,7 +355,7 @@ def test_failed_runner_is_audited_and_not_retried(tmp_path):
 def test_protected_hashes_unchanged_and_quant_lab_has_no_trading_imports():
     root = Path(__file__).resolve().parents[1]
     for relative, expected in PROTECTED_HASHES.items():
-        assert hashlib.sha256((root / relative).read_bytes()).hexdigest().upper() == expected
+        assert sha256_normalized_source(root / relative) == expected
     source = "\n".join(
         path.read_text(encoding="utf-8") for path in (root / "src/ashare_agent/quant_lab").glob("*.py")
     )

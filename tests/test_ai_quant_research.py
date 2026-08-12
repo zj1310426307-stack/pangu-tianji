@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-import hashlib
 from pathlib import Path
 import sqlite3
 from types import SimpleNamespace
@@ -23,6 +22,7 @@ from ashare_agent.quant_ai import (
 from ashare_agent.quant_ai.research_memory import ResearchMemoryStore
 from ashare_agent.quant_lab.contracts import sha256_json
 from ashare_agent.services.model_service import ModelService
+from tests._protected_hash import sha256_normalized_source
 
 
 PROTECTED_HASHES = {
@@ -409,5 +409,5 @@ def test_ai_research_api_keeps_writes_local_and_never_returns_capabilities(tmp_p
 def test_protected_research_portfolio_valuation_and_trading_hashes_are_unchanged():
     root = Path(__file__).resolve().parents[1]
     for relative, expected in PROTECTED_HASHES.items():
-        actual = hashlib.sha256((root / relative).read_bytes()).hexdigest().upper()
+        actual = sha256_normalized_source(root / relative)
         assert actual == expected

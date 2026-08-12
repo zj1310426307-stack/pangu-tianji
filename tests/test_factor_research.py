@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import timedelta
-import hashlib
 import json
 from pathlib import Path
 import sqlite3
@@ -20,6 +19,7 @@ from ashare_agent.quant_lab.contracts import (
     aggregate_dataset_version,
 )
 from ashare_agent.quant_lab.exceptions import ContractError
+from tests._protected_hash import sha256_normalized_source
 from ashare_agent.quant_lab.experiment_registry import ExperimentRegistry
 from ashare_agent.quant_lab.factor_research.ablation import analyze_ablation
 from ashare_agent.quant_lab.factor_research.ablation_engine import AblationEngine
@@ -438,7 +438,7 @@ def test_same_experiment_replay_gets_new_run_without_overwrite(factor_center):
 def test_protected_hashes_and_factor_research_import_boundary_are_unchanged():
     root = Path(__file__).resolve().parents[1]
     for relative, expected in PROTECTED_HASHES.items():
-        assert hashlib.sha256((root / relative).read_bytes()).hexdigest().upper() == expected
+        assert sha256_normalized_source(root / relative) == expected
     source = "\n".join(
         path.read_text(encoding="utf-8")
         for path in (root / "src/ashare_agent/quant_lab/factor_research").glob("*.py")

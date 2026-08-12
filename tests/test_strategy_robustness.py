@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import replace
 from pathlib import Path
-import hashlib
 import json
 import sqlite3
 
@@ -20,6 +19,7 @@ from ashare_agent.quant_lab.contracts import (
     sha256_json,
 )
 from ashare_agent.quant_lab.exceptions import ContractError
+from tests._protected_hash import sha256_normalized_source
 from ashare_agent.quant_lab.robustness.bootstrap import analyze_bootstrap
 from ashare_agent.quant_lab.robustness.contracts import (
     RobustnessConfig,
@@ -339,7 +339,7 @@ def test_report_contains_synthetic_warning_no_secret_and_no_validity_claim(robus
 def test_protected_hashes_and_robustness_import_boundary_are_unchanged():
     root = Path(__file__).resolve().parents[1]
     for relative, expected in PROTECTED_HASHES.items():
-        assert hashlib.sha256((root / relative).read_bytes()).hexdigest().upper() == expected
+        assert sha256_normalized_source(root / relative) == expected
     source = "\n".join(
         path.read_text(encoding="utf-8")
         for path in (root / "src/ashare_agent/quant_lab/robustness").glob("*.py")

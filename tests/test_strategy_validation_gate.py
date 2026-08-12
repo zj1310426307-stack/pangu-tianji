@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import json
 from pathlib import Path
 import sqlite3
@@ -21,6 +20,7 @@ from ashare_agent.quant_lab.validation_gate import (
     StrategyVersionSpec,
     ValidationEvidenceBundle,
 )
+from tests._protected_hash import sha256_normalized_source
 
 
 PROTECTED_HASHES = {
@@ -366,5 +366,5 @@ def test_reading_008b_and_008c_reports_checks_strategy_identity(tmp_path):
 def test_protected_research_portfolio_valuation_and_trading_hashes_are_unchanged():
     root = Path(__file__).resolve().parents[1]
     for relative, expected in PROTECTED_HASHES.items():
-        actual = hashlib.sha256((root / relative).read_bytes()).hexdigest().upper()
+        actual = sha256_normalized_source(root / relative)
         assert actual == expected

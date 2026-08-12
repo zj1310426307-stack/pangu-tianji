@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-import hashlib
 from pathlib import Path
 import re
 from zoneinfo import ZoneInfo
@@ -13,6 +12,7 @@ from ashare_agent.services.personal_ai_assistant_service import (
     READ_ONLY_EVIDENCE_WHITELIST,
     PersonalAIAssistantService,
 )
+from tests._protected_hash import sha256_normalized_source
 
 
 TZ = ZoneInfo("Asia/Shanghai")
@@ -304,8 +304,8 @@ def test_protected_baseline_files_unchanged():
         "src/ashare_agent/ai_copilot/copilot_service.py": "4329F751FE01D5A7E8A5FAA4F71FABF733FA4BDB77B33E68A91B5941A41993B2",
     }
     mismatches = {
-        path: hashlib.sha256((root / path).read_bytes()).hexdigest().upper()
+        path: sha256_normalized_source(root / path)
         for path, expected in baselines.items()
-        if hashlib.sha256((root / path).read_bytes()).hexdigest().upper() != expected
+        if sha256_normalized_source(root / path) != expected
     }
     assert mismatches == {}
