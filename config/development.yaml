@@ -1,0 +1,5 @@
+system:
+  environment: development
+engineering:
+  log_level: DEBUG
+  health_history_limit: 15

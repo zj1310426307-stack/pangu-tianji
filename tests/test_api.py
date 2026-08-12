@@ -123,7 +123,7 @@ def test_api_exposes_safe_capabilities_only(tmp_path: Path) -> None:
         assert status["safety"]["model_in_execution"] is False
         assert status["model"]["can_trade"] is False
         workbench = client.get("/api/v1/workbench").json()
-        assert workbench["version"] == "1.0.0"
+        assert workbench["version"] == "1.1.0"
         assert workbench["mode"] == "paper_portfolio_review"
         assert workbench["can_submit_orders"] is False
         assert workbench["source_nav_date"] is None
@@ -457,12 +457,45 @@ def test_kill_switch_blocks_new_runs(tmp_path: Path) -> None:
         assert blocked.status_code == 423
 
 
+def test_successful_paper_mutation_invalidates_dashboard_cache(tmp_path: Path) -> None:
+    """Only a confirmed paper-account write may invalidate the read snapshot."""
+
+    class DashboardCacheSpy:
+        def __init__(self) -> None:
+            self.invalidations = 0
+
+        def invalidate(self) -> None:
+            self.invalidations += 1
+
+        def overview(self) -> dict:
+            raise AssertionError("This test only verifies the mutation boundary")
+
+    dashboard = DashboardCacheSpy()
+    app = create_app(
+        make_project(tmp_path), investment_dashboard_service=dashboard
+    )
+    with TestClient(app) as client:
+        denied = client.post(
+            "/api/v1/safety/kill-switch", json={"enabled": True}
+        )
+        assert denied.status_code == 403
+        assert dashboard.invalidations == 0
+        accepted = client.post(
+            "/api/v1/safety/kill-switch",
+            json={"enabled": True},
+            headers=WRITE_HEADERS,
+        )
+        assert accepted.status_code == 200
+        assert dashboard.invalidations == 1
+
+
 def test_workbench_reviews_only_actual_paper_positions(tmp_path: Path) -> None:
     """Exclude configured ETF symbols and expose only MockBroker holdings."""
     app = create_app(make_project(tmp_path))
+    app.state.workbench_service.trade_date_provider = lambda: date(2026, 7, 21)
     app.state.workbench_service.valuation_provider = lambda symbols: {
         "prices": {symbol: 100.0 for symbol in symbols},
-        "source": "test_snapshot",
+        "source": "ths_finance_snapshot",
         "observed_at": "2026-07-21T10:00:00+08:00",
         "age_seconds": 0.0,
         "stale": False,
@@ -490,13 +523,184 @@ def test_workbench_reviews_only_actual_paper_positions(tmp_path: Path) -> None:
         assert payload["activity_summary"]["position_count"] == 1
         assert payload["activity_summary"]["trade_count"] == 1
         assert payload["positions"][0]["valuation_source"] == "ths_polling_snapshot"
-        assert payload["valuation"]["source"] == "test_snapshot"
+        assert payload["valuation"]["source"] == "ths_finance_snapshot"
+        assert payload["valuation_observed_at"] == "2026-07-21T10:00:00+08:00"
+        assert payload["valuation_trade_date"] == "2026-07-21"
+        assert payload["nav_snapshot_state"] == "PERSISTED_CURRENT"
+        assert payload["source_nav_date"] == "2026-07-21"
         assert abs(payload["performance"]["pnl_reconciliation_gap"]) < 1e-6
         assert payload["symbol_attribution"][0]["symbol"] == "600519.SH"
         assert payload["discipline"]["score"] == 100
         assert not {
             "510300.SH", "510500.SH", "512100.SH", "159915.SZ"
         } & {item["symbol"] for item in payload["positions"]}
+
+
+def test_workbench_refreshes_t1_and_lists_all_positions_in_next_session_plan(tmp_path: Path) -> None:
+    """Release prior-day shares and never truncate an account with over five names."""
+    app = create_app(make_project(tmp_path))
+    selected_date = [date(2026, 7, 21)]
+    app.state.workbench_service.trade_date_provider = lambda: selected_date[0]
+    app.state.workbench_service.valuation_provider = lambda symbols: {
+        "prices": {symbol: 10.0 for symbol in symbols},
+        "source": "ths_finance_snapshot",
+        "observed_at": "2026-07-22T09:35:00+08:00",
+        "age_seconds": 0.0,
+        "stale": False,
+        "message": "测试持仓估值",
+    }
+    paper = app.state.daily_research_service.paper
+    symbols = [f"60000{index}.SH" for index in range(6)]
+    market = {
+        symbol: {
+            "last_price": 10.0,
+            "volume": 1_000_000,
+            "price_change_ratio_pct": 1.0,
+        }
+        for symbol in symbols
+    }
+    for index, symbol in enumerate(symbols):
+        result = paper.manual_buy(
+            symbol=symbol,
+            name=f"股票{index}",
+            quantity=100,
+            quotes=market,
+            trade_date=selected_date[0],
+            request_key=f"workbench-all-{index}",
+        )
+        assert result["order"]["status"] == "FILLED"
+    with TestClient(app) as client:
+        same_day = client.get("/api/v1/workbench").json()
+        assert len(same_day["positions"]) == 6
+        assert all(item["available_quantity"] == 0 for item in same_day["positions"])
+        selected_date[0] = date(2026, 7, 22)
+        next_day = client.get("/api/v1/workbench").json()
+        assert all(item["available_quantity"] == 100 for item in next_day["positions"])
+        plan = next_day["next_session_plan"]
+        assert plan["scope"] == "all_actual_positions"
+        assert plan["position_count"] == 6
+        assert plan["position_count_limit_enabled"] is False
+        assert plan["max_positions"] is None
+        assert {item["symbol"] for item in plan["positions"]} == set(symbols)
+        assert next_day["position_refresh_seconds"] == 15
+        assert next_day["settlement_rule"] == "A_SHARE_T_PLUS_1"
+
+
+def test_workbench_separates_live_valuation_time_from_historical_nav(tmp_path: Path) -> None:
+    """Persist a complete same-day quote while exposing both time semantics."""
+    app = create_app(make_project(tmp_path))
+    paper = app.state.daily_research_service.paper
+    paper.manual_buy(
+        symbol="600519.SH",
+        name="贵州茅台",
+        quantity=100,
+        quotes={
+            "600519.SH": {
+                "last_price": 100.0,
+                "volume": 1_000_000,
+                "price_change_ratio_pct": 1.0,
+            }
+        },
+        trade_date=date(2026, 8, 4),
+        request_key="historical-nav",
+    )
+    app.state.workbench_service.trade_date_provider = lambda: date(2026, 8, 12)
+    app.state.workbench_service.valuation_provider = lambda symbols: {
+        "prices": {symbol: 108.0 for symbol in symbols},
+        "source": "ths_finance_snapshot",
+        "observed_at": "2026-08-12T21:29:20+08:00",
+        "age_seconds": 0.0,
+        "stale": False,
+        "message": "测试同日持仓估值",
+    }
+    with TestClient(app) as client:
+        payload = client.get("/api/v1/workbench").json()
+    assert payload["valuation_observed_at"] == "2026-08-12T21:29:20+08:00"
+    assert payload["valuation_trade_date"] == "2026-08-12"
+    assert payload["nav_snapshot_state"] == "PERSISTED_CURRENT"
+    assert payload["source_nav_date"] == "2026-08-12"
+    assert payload["nav"][-1]["trade_date"] == "2026-08-12"
+
+
+def test_workbench_refuses_unsafe_nav_persistence_but_keeps_live_valuation(tmp_path: Path) -> None:
+    """Reject stale, incomplete, mismatched and untrusted NAV write evidence."""
+    scenarios = [
+        (
+            "SKIPPED_STALE",
+            {"prices": {"600000.SH": 11.0}, "source": "ths_finance_snapshot", "observed_at": "2026-08-12T10:00:00+08:00", "age_seconds": 999.0, "stale": True, "message": "陈旧"},
+        ),
+        (
+            "SKIPPED_INCOMPLETE",
+            {"prices": {}, "source": "ths_finance_snapshot", "observed_at": "2026-08-12T10:00:00+08:00", "age_seconds": 0.0, "stale": False, "message": "不完整"},
+        ),
+        (
+            "SKIPPED_DATE_MISMATCH",
+            {"prices": {"600000.SH": 11.0}, "source": "ths_finance_snapshot", "observed_at": "2026-08-11T15:00:00+08:00", "age_seconds": 0.0, "stale": False, "message": "跨日"},
+        ),
+        (
+            "SKIPPED_UNTRUSTED",
+            {"prices": {"600000.SH": 11.0}, "source": "test_snapshot", "observed_at": "2026-08-12T10:00:00+08:00", "age_seconds": 0.0, "stale": False, "message": "未信任"},
+        ),
+    ]
+    for index, (expected_state, valuation) in enumerate(scenarios):
+        scenario_root = tmp_path / str(index)
+        scenario_root.mkdir()
+        app = create_app(make_project(scenario_root))
+        paper = app.state.daily_research_service.paper
+        paper.manual_buy(
+            symbol="600000.SH",
+            name="浦发银行",
+            quantity=100,
+            quotes={"600000.SH": {"last_price": 10.0, "volume": 1_000_000, "price_change_ratio_pct": 1.0}},
+            trade_date=date(2026, 8, 4),
+            request_key=f"unsafe-nav-{index}",
+        )
+        app.state.workbench_service.trade_date_provider = lambda: date(2026, 8, 12)
+        app.state.workbench_service.valuation_provider = lambda _symbols, payload=valuation: payload
+        with TestClient(app) as client:
+            payload = client.get("/api/v1/workbench").json()
+        assert payload["nav_snapshot_state"] == expected_state
+        assert payload["source_nav_date"] == "2026-08-04"
+        if valuation["prices"]:
+            assert payload["positions"][0]["last_price"] == 11.0
+
+
+def test_workbench_reports_nav_write_failure_without_hiding_valuation(tmp_path: Path) -> None:
+    """Keep a successful live valuation visible when durable NAV writing fails."""
+    app = create_app(make_project(tmp_path))
+    paper = app.state.daily_research_service.paper
+    paper.manual_buy(
+        symbol="600000.SH",
+        name="浦发银行",
+        quantity=100,
+        quotes={"600000.SH": {"last_price": 10.0, "volume": 1_000_000, "price_change_ratio_pct": 1.0}},
+        trade_date=date(2026, 8, 4),
+        request_key="nav-write-failure",
+    )
+    app.state.workbench_service.trade_date_provider = lambda: date(2026, 8, 12)
+    app.state.workbench_service.valuation_provider = lambda symbols: {
+        "prices": {symbol: 11.0 for symbol in symbols},
+        "source": "ths_finance_snapshot",
+        "observed_at": "2026-08-12T10:00:00+08:00",
+        "age_seconds": 0.0,
+        "stale": False,
+        "message": "当前估值可用",
+    }
+    paper.mark_to_market = lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("disk locked"))
+    with TestClient(app) as client:
+        payload = client.get("/api/v1/workbench").json()
+    assert payload["nav_snapshot_state"] == "PERSISTENCE_FAILED"
+    assert payload["source_nav_date"] == "2026-08-04"
+    assert payload["positions"][0]["last_price"] == 11.0
+    assert any(flag["code"] == "NAV_PERSISTENCE_FAILED" for flag in payload["risk_flags"])
+
+
+def test_workbench_frontend_badge_uses_valuation_time_not_nav_date() -> None:
+    """Prevent the holdings badge from relabeling historical NAV as live data."""
+    app_js = (Path(__file__).resolve().parents[1] / "web" / "app.js").read_text(encoding="utf-8")
+    assert 'valuationBadgeLabel(currentValuation)' in app_js
+    assert 'payload.valuation_observed_at || payload.valuation?.observed_at' in app_js
+    assert 'payload.source_nav_date ? `净值 ${payload.source_nav_date}`' not in app_js
 
 
 def test_daily_dashboard_and_review_can_read_shared_ledger_concurrently(tmp_path: Path) -> None:

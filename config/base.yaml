@@ -1,0 +1,20 @@
+config_version: pangu-config-v1.0.0
+system:
+  name: "盘古·天机"
+  environment: development
+  timezone: Asia/Shanghai
+  live_trading_enabled: false
+engineering:
+  event_db: output/engineering_health.db
+  backup_root: output/backups
+  log_level: INFO
+  health_weights:
+    data: 30
+    database: 30
+    ai: 20
+    strategy: 20
+  health_history_limit: 30
+security:
+  allow_live_broker: false
+  expose_secrets: false
+  backup_secrets: false

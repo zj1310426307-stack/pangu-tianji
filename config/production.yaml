@@ -1,0 +1,10 @@
+system:
+  environment: production
+  live_trading_enabled: false
+engineering:
+  log_level: INFO
+  health_history_limit: 90
+security:
+  allow_live_broker: false
+  expose_secrets: false
+  backup_secrets: false

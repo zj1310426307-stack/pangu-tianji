@@ -15,6 +15,7 @@ from .journal import InvestmentJournal
 from .knowledge_base import PersonalKnowledgeBase
 from .monthly_review import MonthlyInvestmentReview
 from .personal_score import PersonalInvestmentScore
+from .review_loop import InvestmentReviewLoop
 from .store import PersonalOSStore
 
 
@@ -32,15 +33,18 @@ class PersonalInvestmentOSService:
         investment_os_service: Any,
         quant_ai_service: Any,
         strategy_validation_service: Any,
+        daily_research_service: Any | None = None,
         production_profile: Mapping[str, Any] | None = None,
         store: PersonalOSStore | None = None,
         now_provider: Callable[[], datetime] | None = None,
+        review_config: Mapping[str, Any] | None = None,
     ) -> None:
         self.root = Path(project_root)
         self.workbench = workbench_service
         self.investment_os = investment_os_service
         self.quant_ai = quant_ai_service
         self.strategy_validation = strategy_validation_service
+        self.daily_research = daily_research_service
         self.production_profile = dict(production_profile or {})
         self.store = store or PersonalOSStore(self.root / "output" / "agent.db")
         self.now_provider = now_provider or (lambda: datetime.now(SHANGHAI_TZ))
@@ -52,6 +56,7 @@ class PersonalInvestmentOSService:
         self.coach_service = PersonalInvestmentCoach()
         self.committee_service = InvestmentCommittee()
         self.monthly_service = MonthlyInvestmentReview()
+        self.review_loop = InvestmentReviewLoop(self.store, review_config)
 
     def dashboard(self) -> dict[str, Any]:
         """Read the whole personal loop without creating reports, events or scores."""
@@ -65,6 +70,8 @@ class PersonalInvestmentOSService:
         journals = self.store.journals(80)
         knowledge = self.store.knowledge_items(80)
         reports = self.store.reports(50)
+        reviews = self.store.reviews(80)
+        reminders = self.store.reminders(100)
         counts = self.store.counts()
         profile = self.profile_service.get(self.production_profile)
         score = self.store.score()
@@ -129,6 +136,9 @@ class PersonalInvestmentOSService:
             },
             "events": events[:20],
             "journals": journals[:20],
+            "reviews": reviews[:20],
+            "reminders": reminders[:30],
+            "review_center": self._review_center(today, journals, reviews, reminders),
             "knowledge": knowledge[:20],
             "reports": self._aggregate_reports(reports, operating, quant),
             "counts": counts,
@@ -157,7 +167,15 @@ class PersonalInvestmentOSService:
         return {"items": self.store.events(limit), **safety_contract()}
 
     def create_journal(self, values: Mapping[str, Any]) -> dict[str, Any]:
-        return self.journal_service.create(values)
+        payload = dict(values)
+        cycle = str(payload.pop("review_cycle", "NONE")).upper()
+        custom_date = payload.pop("custom_review_date", None)
+        if cycle != "NONE":
+            payload["review_due_at"] = self.review_loop.due_date(
+                str(payload["trade_date"]),cycle,str(custom_date) if custom_date else None,
+            )
+        payload.setdefault("review_status", "NOT_DUE")
+        return self.journal_service.create(payload)
 
     def journals(self, limit: int = 200) -> dict[str, Any]:
         return {"items": self.journal_service.list(limit), **safety_contract()}
@@ -167,6 +185,74 @@ class PersonalInvestmentOSService:
 
     def archive_journal(self, journal_id: str, expected_version: int) -> dict[str, Any]:
         return self.journal_service.archive(journal_id, expected_version)
+
+    def review_dashboard(self, *, sync: bool = False) -> dict[str, Any]:
+        """Read the one-page review loop and optionally refresh deterministic reminders."""
+        if sync:
+            self.sync_review_reminders()
+        payload = self.dashboard()
+        return {
+            "service_version": payload["service_version"], "generated_at": payload["generated_at"],
+            "trade_date": payload["trade_date"], "asset_valuation": payload["asset_valuation"],
+            "review_center": payload["review_center"], "journals": payload["journals"],
+            "reviews": payload["reviews"], "reminders": payload["reminders"],
+            "reports": payload["reports"], "safety": payload["safety"], **safety_contract(),
+        }
+
+    def review_draft(self, journal_id: str) -> dict[str, Any]:
+        """Build a transient, non-model review draft from current backend evidence."""
+        research = self.daily_research.dashboard() if self.daily_research is not None else {}
+        return self.review_loop.draft(
+            journal_id,workbench=self.workbench.get(),research=research,
+            operating=self.investment_os.dashboard(),now=self.now_provider(),
+        )
+
+    def confirm_review(self, journal_id: str, values: Mapping[str, Any]) -> dict[str, Any]:
+        """Save only an explicitly confirmed review and its optional confirmed Lesson."""
+        current_draft = self.review_draft(journal_id)
+        supplied = {
+            (str(item.get("evidence_id") or ""),str(item.get("payload_hash") or ""))
+            for item in list(values.get("evidence_refs") or []) if isinstance(item,Mapping)
+        }
+        expected = {
+            (str(item.get("evidence_id") or ""),str(item.get("payload_hash") or ""))
+            for item in list(current_draft.get("evidence_refs") or []) if isinstance(item,Mapping)
+        }
+        if supplied != expected:
+            raise ValueError("复盘Evidence与当前权威草稿不匹配，请重新生成草稿")
+        payload = {
+            **dict(values),"journal_id":journal_id,"user_confirmed":True,
+            "draft":current_draft,
+        }
+        saved, created = self.store.save_review(payload)
+        lesson = None
+        candidate = str(values.get("lesson_candidate") or "").strip()
+        if candidate:
+            journal = self.store.journal(journal_id)
+            lesson = self.store.create_journal({
+                "idempotency_key":f"lesson-{saved['review_id']}","entry_type":"LESSON",
+                "trade_date":str(saved["reviewed_at"])[:10],"symbol":journal.get("symbol"),
+                "title":f"复盘经验：{journal.get('title')}","reason":candidate,
+                "user_text":candidate,"source":"USER","review_status":"DONE","evidence_ids":[],
+            })
+        self.store.mark_review_reminders_done(journal_id)
+        return {"review":saved,"lesson":lesson,"created":created,**safety_contract()}
+
+    def sync_review_reminders(self) -> dict[str, Any]:
+        """Refresh due/risk/research reminders without running research or a model."""
+        research = self.daily_research.dashboard() if self.daily_research is not None else {}
+        return self.review_loop.sync_reminders(
+            workbench=self.workbench.get(),research=research,
+            operating=self.investment_os.dashboard(),now=self.now_provider(),
+        )
+
+    def reminders(self, limit: int = 200) -> dict[str, Any]:
+        """List Personal OS in-app reminders without external delivery."""
+        return {"items":self.store.reminders(limit),**safety_contract()}
+
+    def update_reminder(self, reminder_id: str, status: str) -> dict[str, Any]:
+        """Acknowledge, dismiss or finish one in-app reminder."""
+        return self.store.update_reminder(reminder_id,status)
 
     def create_knowledge(self, values: Mapping[str, Any]) -> dict[str, Any]:
         return self.knowledge_service.create(values)
@@ -254,11 +340,45 @@ class PersonalInvestmentOSService:
 
     @staticmethod
     def _loop_state(events: list[Mapping[str, Any]], journals: list[Mapping[str, Any]]) -> str:
-        if any(item.get("entry_type") in {"review", "lesson"} and item.get("status") == "active" for item in journals):
+        if any(item.get("entry_type") in {"REVIEW", "LESSON"} and item.get("status") == "active" for item in journals):
             return "复盘与学习"
         if any(item.get("event_type") in {"BUY", "SELL"} for item in events):
             return "跟踪与待复盘"
         return "研究与记录"
+
+    @staticmethod
+    def _review_center(
+        today: str,journals: list[Mapping[str, Any]],reviews: list[Mapping[str, Any]],
+        reminders: list[Mapping[str, Any]],
+    ) -> dict[str, Any]:
+        """Shape today's, recent and long-term review sections without new scoring."""
+        active = [item for item in journals if item.get("status") == "active"]
+        due = [
+            item for item in active
+            if item.get("review_status") in {"DUE","IN_REVIEW"}
+            or (item.get("review_due_at") and str(item["review_due_at"]) <= today and item.get("review_status") != "DONE")
+        ]
+        cutoff = (date.fromisoformat(today)-timedelta(days=6)).isoformat()
+        recent_decisions = [
+            item for item in active
+            if item.get("entry_type") == "DECISION" and str(item.get("trade_date") or "") >= cutoff
+        ]
+        recent_lessons = [item for item in active if item.get("entry_type") == "LESSON"]
+        return {
+            "today":{
+                "due_reviews":due,
+                "entries":[item for item in active if item.get("trade_date") == today],
+                "reminders":[item for item in reminders if item.get("trade_date") == today],
+            },
+            "recent":{"decisions":recent_decisions[:20],"reviews":reviews[:20],"lessons":recent_lessons[:20]},
+            "counts":{
+                "pending_reviews":len(due),
+                "new_reminders":sum(item.get("status") == "OPEN" for item in reminders),
+                "unfinished_journals":sum(item.get("review_status") != "DONE" for item in active),
+            },
+            "most_important":due[0] if due else next((item for item in reminders if item.get("status") == "OPEN"),None),
+            "long_term_collapsed":["weekly_reports","monthly_reports","journal_history","coach_summary"],
+        }
 
     @staticmethod
     def _aggregate_reports(

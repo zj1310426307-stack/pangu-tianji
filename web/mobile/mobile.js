@@ -1,7 +1,7 @@
 import { apiRequest, OPERATIONS } from "../generated/client.js";
 
 const TOKEN_KEY = "pangu.mobile.access_token";
-const FOREGROUND_SYNC_MS = 60_000;
+const FOREGROUND_SYNC_MS = 15_000;
 const VIEW_NAMES = new Set(["dashboard", "portfolio", "stock", "assistant", "reports", "journal"]);
 const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
 

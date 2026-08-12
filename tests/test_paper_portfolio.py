@@ -40,6 +40,42 @@ def test_paper_buy_is_round_lot_idempotent_and_persistent(tmp_path):
     reopened.close()
 
 
+def test_zero_max_positions_allows_more_than_five_holdings_without_disabling_risk(tmp_path):
+    """Treat zero as no count cap, while retaining per-name and exposure checks."""
+    config = {**CONFIG, "max_positions": 0}
+    symbols = tuple(f"60000{index}.SH" for index in range(6))
+    market = quotes(symbols)
+    portfolio = PaperPortfolio(tmp_path / "paper.db", config, COSTS)
+    for index, symbol in enumerate(symbols):
+        result = portfolio.manual_buy(
+            symbol=symbol,
+            name=f"股票{index}",
+            quantity=100,
+            quotes=market,
+            trade_date=date(2026, 7, 21),
+            request_key=f"unlimited-{index}",
+        )
+        assert result["order"]["status"] == "FILLED"
+    assert len(portfolio.positions()) == 6
+    oversized = portfolio.manual_buy(
+        symbol="600099.SH",
+        name="超限股票",
+        quantity=2100,
+        quotes={
+            "600099.SH": {
+                "last_price": 10.0,
+                "volume": 1_000_000,
+                "price_change_ratio_pct": 1.0,
+            }
+        },
+        trade_date=date(2026, 7, 21),
+        request_key="still-risk-limited",
+    )
+    assert oversized["order"]["status"] == "RISK_REJECTED"
+    assert "20%" in oversized["order"]["reason"]
+    portfolio.close()
+
+
 def test_t1_stop_is_deferred_then_sold_before_any_rebuy(tmp_path):
     portfolio = PaperPortfolio(tmp_path / "paper.db", CONFIG, COSTS)
     portfolio.execute_plan(plan(), quotes(), date(2026, 7, 21))

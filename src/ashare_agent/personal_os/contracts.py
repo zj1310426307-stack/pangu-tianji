@@ -7,10 +7,17 @@ import re
 from typing import Any, Mapping, Sequence
 
 
-PERSONAL_OS_CONTRACT_VERSION = "personal-investment-os-v1.0.0"
-PERSONAL_OS_SCHEMA_VERSION = "personal-os-schema-v1.0.0"
+PERSONAL_OS_CONTRACT_VERSION = "personal-investment-os-v1.1.0"
+PERSONAL_OS_SCHEMA_VERSION = "personal-os-schema-v2.0.0"
 EVENT_TYPES = {"BUY", "SELL", "OBSERVE", "REVIEW", "LEARN"}
-JOURNAL_TYPES = {"buy_reason", "sell_reason", "observation", "review", "lesson"}
+JOURNAL_TYPES = {"OBSERVE", "DECISION", "REVIEW", "LESSON"}
+JOURNAL_SOURCES = {"USER", "AI_SAVED", "MIGRATED"}
+JOURNAL_REVIEW_STATES = {"NOT_DUE", "DUE", "IN_REVIEW", "DONE"}
+THESIS_STATES = {
+    "STILL_VALID", "WEAKENED", "INVALIDATED", "INSUFFICIENT_EVIDENCE",
+}
+REMINDER_TYPES = {"REVIEW_DUE", "RISK_CHANGED", "RESEARCH_CHANGED", "DAILY_REVIEW"}
+REMINDER_STATES = {"OPEN", "READ", "DISMISSED", "DONE"}
 KNOWLEDGE_CATEGORIES = {"company", "market", "personal_lesson"}
 REPORT_TYPES = {"weekly_committee", "monthly_review", "personal_coach"}
 _EVIDENCE_ID = re.compile(r"^[A-Za-z0-9._:-]{3,240}$")
@@ -72,6 +79,7 @@ def safety_contract() -> dict[str, bool]:
         "can_modify_risk": False,
         "can_approve_strategy": False,
         "can_launch_experiment": False,
+        "can_auto_remediate": False,
     }
 
 
@@ -93,4 +101,3 @@ def evidence_ref(
         "payload_hash": content_hash(payload),
         "payload": dict(payload),
     }
-

@@ -1,0 +1,105 @@
+observability:
+  schema_version: pangu-observability-db-v1.0.0
+  service_version: pangu-observability-v1.0.0
+  database: output/observability.db
+  default_time_range_hours: 24
+  max_query_days: 90
+  max_page_size: 500
+  api_slow_ms: 1500
+  api_5xx_ratio_threshold: 0.02
+  latest_data_stale_hours: 36
+  backup_stale_hours: 168
+  job_stale_seconds: 900
+  formal_research_deadline_local: "16:00"
+  ai_consecutive_failure_threshold: 2
+  alert_cooldown_seconds: 900
+  alert_consecutive_triggers: 1
+  auto_create_critical_incident: false
+  retention:
+    raw_metric_retention_days: 30
+    rollup_retention_days: 180
+    trace_retention_days: 30
+    resolved_alert_retention_days: 3650
+    closed_incident_retention_days: 3650
+    max_db_size_mb: 512
+  slos:
+    - slo_id: api-success-rate
+      name: 本机API成功率
+      category: api
+      window_seconds: 86400
+      target: 0.99
+      comparison: GTE
+      minimum_samples: 20
+      metric_name: api.request.success
+      enabled: true
+      optional_dependency: false
+    - slo_id: api-p95-latency
+      name: 本机API p95延迟
+      category: api
+      window_seconds: 86400
+      target: 1500
+      comparison: LTE
+      minimum_samples: 20
+      metric_name: api.request.duration
+      enabled: true
+      optional_dependency: false
+    - slo_id: database-quick-check
+      name: SQLite quick_check通过率
+      category: database
+      window_seconds: 86400
+      target: 1.0
+      comparison: GTE
+      minimum_samples: 1
+      metric_name: database.quick_check.success
+      enabled: true
+      optional_dependency: false
+    - slo_id: data-health-score
+      name: Data Intelligence健康分
+      category: data
+      window_seconds: 86400
+      target: 85
+      comparison: GTE
+      minimum_samples: 1
+      metric_name: data.intelligence.health.score
+      enabled: true
+      optional_dependency: false
+    - slo_id: data-center-verified-run
+      name: Data Center已验证run可用性
+      category: data
+      window_seconds: 86400
+      target: 1
+      comparison: GTE
+      minimum_samples: 1
+      metric_name: data.verified.run.count
+      enabled: true
+      optional_dependency: false
+    - slo_id: backup-freshness
+      name: 最近备份时效
+      category: backup
+      window_seconds: 604800
+      target: 1.0
+      comparison: GTE
+      minimum_samples: 1
+      metric_name: backup.verification.success
+      enabled: true
+      optional_dependency: false
+    - slo_id: ai-explicit-success-rate
+      name: 显式AI调用成功率
+      category: ai
+      window_seconds: 604800
+      target: 0.95
+      comparison: GTE
+      minimum_samples: 5
+      metric_name: ai.explicit.success
+      enabled: true
+      optional_dependency: true
+    - slo_id: observability-job-success
+      name: 可观测评估作业成功率
+      category: job
+      window_seconds: 604800
+      target: 0.99
+      comparison: GTE
+      minimum_samples: 1
+      metric_name: job.run.success
+      enabled: true
+      optional_dependency: false

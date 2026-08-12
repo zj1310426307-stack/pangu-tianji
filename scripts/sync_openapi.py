@@ -140,6 +140,24 @@ class _OpenApiStrategyEvolutionService:
         }
 
 
+class _OpenApiObservabilityService:
+    """Avoid creating observability state during static OpenAPI export."""
+
+    def dashboard(self, **_kwargs) -> dict[str, Any]:
+        """Reject runtime use; schema export only needs the injected service object."""
+        raise RuntimeError("OPENAPI_EXPORT_ONLY")
+
+
+class _OpenApiObservabilityJobs:
+    """Keep scheduler construction inert during static schema export."""
+
+
+class _OpenApiEngineeringService:
+    """Provide only the engineering objects composed by ``create_app``."""
+
+    observability = _OpenApiObservabilityService()
+
+
 
 def collect_operations(schema: dict[str, Any]) -> dict[str, dict[str, str]]:
     """Return operation-id metadata in deterministic order."""
@@ -243,6 +261,9 @@ def main() -> None:
         personal_os_service=_OpenApiPersonalOSService(),
         data_intelligence_service=_OpenApiDataIntelligenceService(),
         strategy_evolution_service=_OpenApiStrategyEvolutionService(),
+        engineering_service=_OpenApiEngineeringService(),
+        observability_service=_OpenApiObservabilityService(),
+        investment_job_manager=object(),
     )
     schema = app.openapi()
     operations = collect_operations(schema)

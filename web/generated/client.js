@@ -4,6 +4,10 @@ export const OPERATIONS = Object.freeze({
     "method": "POST",
     "path": "/api/v1/data-intelligence/incidents/{incident_id}/acknowledge"
   },
+  "acknowledge_observability_alert": {
+    "method": "POST",
+    "path": "/api/v1/observability/alerts/{alert_id}/acknowledge"
+  },
   "approve_strategy_evolution_transition": {
     "method": "POST",
     "path": "/api/v1/strategy-evolution/lifecycle/requests/{request_id}/approve"
@@ -52,6 +56,10 @@ export const OPERATIONS = Object.freeze({
     "method": "POST",
     "path": "/api/v1/copilot/memory/{memory_id}/confirm"
   },
+  "confirm_investment_review": {
+    "method": "POST",
+    "path": "/api/v1/review/{journal_id}"
+  },
   "create_ai_research_brief": {
     "method": "POST",
     "path": "/api/v1/ai-research/briefs"
@@ -68,6 +76,14 @@ export const OPERATIONS = Object.freeze({
     "method": "POST",
     "path": "/api/v1/model/daily-research-explanation"
   },
+  "create_engineering_backup": {
+    "method": "POST",
+    "path": "/api/v1/engineering/backups"
+  },
+  "create_investment_review_journal": {
+    "method": "POST",
+    "path": "/api/v1/review/journal"
+  },
   "create_mobile_copilot_chat": {
     "method": "POST",
     "path": "/api/mobile/v1/copilot/chat"
@@ -83,6 +99,10 @@ export const OPERATIONS = Object.freeze({
   "create_model_explanation": {
     "method": "POST",
     "path": "/api/v1/model/explanations"
+  },
+  "create_observability_incident": {
+    "method": "POST",
+    "path": "/api/v1/observability/incidents"
   },
   "create_paper_review_explanation": {
     "method": "POST",
@@ -119,6 +139,10 @@ export const OPERATIONS = Object.freeze({
   "evaluate_data_intelligence_run": {
     "method": "POST",
     "path": "/api/v1/data-intelligence/evaluate"
+  },
+  "evaluate_observability": {
+    "method": "POST",
+    "path": "/api/v1/observability/evaluate"
   },
   "evaluate_strategy_evolution": {
     "method": "POST",
@@ -176,9 +200,25 @@ export const OPERATIONS = Object.freeze({
     "method": "GET",
     "path": "/api/v1/workbench"
   },
+  "get_engineering_configuration": {
+    "method": "GET",
+    "path": "/api/v1/engineering/config"
+  },
+  "get_engineering_dashboard": {
+    "method": "GET",
+    "path": "/api/v1/engineering"
+  },
+  "get_engineering_versions": {
+    "method": "GET",
+    "path": "/api/v1/engineering/versions"
+  },
   "get_health": {
     "method": "GET",
     "path": "/api/v1/health"
+  },
+  "get_investment_dashboard_overview": {
+    "method": "GET",
+    "path": "/api/v1/dashboard/overview"
   },
   "get_investment_os": {
     "method": "GET",
@@ -187,6 +227,14 @@ export const OPERATIONS = Object.freeze({
   "get_investment_report": {
     "method": "GET",
     "path": "/api/v1/investment-os/reports/{report_id}"
+  },
+  "get_investment_review_draft": {
+    "method": "GET",
+    "path": "/api/v1/review/{journal_id}/draft"
+  },
+  "get_investment_review_loop": {
+    "method": "GET",
+    "path": "/api/v1/review"
   },
   "get_live_market_quote": {
     "method": "GET",
@@ -223,6 +271,14 @@ export const OPERATIONS = Object.freeze({
   "get_model_status": {
     "method": "GET",
     "path": "/api/v1/model/status"
+  },
+  "get_observability_dashboard": {
+    "method": "GET",
+    "path": "/api/v1/observability"
+  },
+  "get_observability_trace": {
+    "method": "GET",
+    "path": "/api/v1/observability/traces/{trace_id}"
   },
   "get_personal_investment_os": {
     "method": "GET",
@@ -296,6 +352,14 @@ export const OPERATIONS = Object.freeze({
     "method": "GET",
     "path": "/api/v1/data-intelligence/incidents"
   },
+  "list_engineering_backups": {
+    "method": "GET",
+    "path": "/api/v1/engineering/backups"
+  },
+  "list_engineering_events": {
+    "method": "GET",
+    "path": "/api/v1/engineering/events"
+  },
   "list_investment_notifications": {
     "method": "GET",
     "path": "/api/v1/investment-os/notifications"
@@ -303,6 +367,14 @@ export const OPERATIONS = Object.freeze({
   "list_investment_reports": {
     "method": "GET",
     "path": "/api/v1/investment-os/reports"
+  },
+  "list_investment_review_journal": {
+    "method": "GET",
+    "path": "/api/v1/review/journal"
+  },
+  "list_investment_review_reminders": {
+    "method": "GET",
+    "path": "/api/v1/review/reminders"
   },
   "list_mobile_copilot_history": {
     "method": "GET",
@@ -319,6 +391,30 @@ export const OPERATIONS = Object.freeze({
   "list_mobile_reports": {
     "method": "GET",
     "path": "/api/mobile/v1/reports"
+  },
+  "list_observability_alerts": {
+    "method": "GET",
+    "path": "/api/v1/observability/alerts"
+  },
+  "list_observability_incidents": {
+    "method": "GET",
+    "path": "/api/v1/observability/incidents"
+  },
+  "list_observability_jobs": {
+    "method": "GET",
+    "path": "/api/v1/observability/jobs"
+  },
+  "list_observability_metrics": {
+    "method": "GET",
+    "path": "/api/v1/observability/metrics"
+  },
+  "list_observability_slos": {
+    "method": "GET",
+    "path": "/api/v1/observability/slos"
+  },
+  "list_observability_traces": {
+    "method": "GET",
+    "path": "/api/v1/observability/traces"
   },
   "list_personal_investment_events": {
     "method": "GET",
@@ -368,6 +464,10 @@ export const OPERATIONS = Object.freeze({
     "method": "POST",
     "path": "/api/mobile/v1/auth/pair"
   },
+  "plan_observability_retention": {
+    "method": "POST",
+    "path": "/api/v1/observability/retention/plan"
+  },
   "preview_broker_paper_order": {
     "method": "POST",
     "path": "/api/v1/paper/broker/orders/preview"
@@ -375,6 +475,10 @@ export const OPERATIONS = Object.freeze({
   "preview_paper_order": {
     "method": "POST",
     "path": "/api/v1/paper/orders/preview"
+  },
+  "query_personal_ai_assistant": {
+    "method": "POST",
+    "path": "/api/v1/assistant/query"
   },
   "rate_copilot_report": {
     "method": "POST",
@@ -408,9 +512,17 @@ export const OPERATIONS = Object.freeze({
     "method": "POST",
     "path": "/api/v1/strategy-lab/reviews/{review_id}/retirement-requests"
   },
+  "run_engineering_health": {
+    "method": "POST",
+    "path": "/api/v1/engineering/health/run"
+  },
   "run_investment_os_job": {
     "method": "POST",
     "path": "/api/v1/investment-os/jobs/{job_name}/run"
+  },
+  "run_observability_retention": {
+    "method": "POST",
+    "path": "/api/v1/observability/retention/run"
   },
   "set_kill_switch": {
     "method": "POST",
@@ -432,6 +544,10 @@ export const OPERATIONS = Object.freeze({
     "method": "POST",
     "path": "/api/v1/paper/orders/sell"
   },
+  "sync_investment_review_reminders": {
+    "method": "POST",
+    "path": "/api/v1/review/reminders/sync"
+  },
   "sync_personal_investment_events": {
     "method": "POST",
     "path": "/api/v1/personal-os/events/sync"
@@ -444,6 +560,10 @@ export const OPERATIONS = Object.freeze({
     "method": "POST",
     "path": "/api/v1/ai-research/questions/{question_id}/status"
   },
+  "update_investment_review_reminder_status": {
+    "method": "POST",
+    "path": "/api/v1/review/reminders/{reminder_id}/status"
+  },
   "update_investor_digital_twin": {
     "method": "POST",
     "path": "/api/v1/personal-os/profile"
@@ -451,6 +571,10 @@ export const OPERATIONS = Object.freeze({
   "update_mobile_journal_entry": {
     "method": "PATCH",
     "path": "/api/mobile/v1/journal/{entry_id}"
+  },
+  "update_observability_incident_status": {
+    "method": "POST",
+    "path": "/api/v1/observability/incidents/{incident_id}/status"
   },
   "update_personal_investment_journal": {
     "method": "PATCH",

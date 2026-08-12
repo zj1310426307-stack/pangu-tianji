@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from uuid import UUID
 from typing import Any, Literal
 
@@ -496,13 +496,55 @@ class WorkbenchActivitySummary(BaseModel):
     latest_activity_date: str | None
 
 
+class WorkbenchNextSessionPosition(BaseModel):
+    """Expose one actual holding in the next-session paper review plan."""
+
+    symbol: str
+    name: str
+    quantity: int
+    available_quantity: int
+    frozen_quantity: int
+    sellable_quantity: int
+    pending_exit: bool
+    next_session_action: Literal[
+        "PRIORITY_EXIT", "RELEASE_T1_AND_REVIEW", "HOLD_AND_REVIEW"
+    ]
+
+
+class WorkbenchNextSessionPlan(BaseModel):
+    """Cover all actual paper positions without a display-count truncation."""
+
+    scope: Literal["all_actual_positions"]
+    position_count: int
+    position_count_limit_enabled: bool
+    max_positions: int | None
+    positions: list[WorkbenchNextSessionPosition]
+    message: str
+
+
 class WorkbenchResponse(BaseModel):
     """Contract for the paper-account review workspace without a whitelist."""
 
-    version: Literal["1.0.0"]
+    version: Literal["1.1.0"]
     generated_at: str
+    position_as_of_trade_date: str
+    position_refresh_seconds: Literal[15]
+    settlement_rule: Literal["A_SHARE_T_PLUS_1"]
+    next_session_plan: WorkbenchNextSessionPlan
     mode: Literal["paper_portfolio_review"]
     source_nav_date: str | None
+    valuation_observed_at: str | None
+    valuation_trade_date: str | None
+    nav_snapshot_state: Literal[
+        "NOT_REQUIRED",
+        "PERSISTED_CURRENT",
+        "SKIPPED_STALE",
+        "SKIPPED_INCOMPLETE",
+        "SKIPPED_DATE_MISMATCH",
+        "SKIPPED_UNTRUSTED",
+        "PERSISTENCE_FAILED",
+    ]
+    nav_snapshot_message: str
     account: PaperReviewAccount
     asset_valuation: AssetValuation
     positions: list[PaperReviewPosition]
@@ -583,6 +625,103 @@ class InvestmentOSDashboardResponse(BaseModel):
     safety: dict[str, Any]
     can_trade: Literal[False]
     can_create_orders: Literal[False]
+
+
+class InvestmentDashboardOverviewResponse(BaseModel):
+    """Expose the cached daily cockpit with every execution capability disabled."""
+
+    service_version: Literal["investment-dashboard-v1.0.0"]
+    snapshot_id: str
+    created_at: str
+    expires_at: str
+    cache_seconds: int = Field(ge=1, le=60)
+    valuation_version: str | None
+    risk_version: str | None
+    ai_report_id: str | None
+    market: dict[str, Any]
+    asset: dict[str, Any]
+    risk: dict[str, Any]
+    ai_summary: dict[str, Any]
+    watchlist: list[dict[str, Any]]
+    holding_health: list[dict[str, Any]]
+    next_session_plan: dict[str, Any]
+    tasks: list[dict[str, Any]]
+    research: dict[str, Any]
+    data_gaps: list[str]
+    safety: dict[str, Any]
+    can_trade: Literal[False]
+    can_create_orders: Literal[False]
+
+
+class PersonalAssistantQueryRequest(BaseModel):
+    """Select one of five fixed, evidence-bound personal investment questions."""
+
+    intent: Literal[
+        "daily_attention",
+        "portfolio_analysis",
+        "stock_reason",
+        "portfolio_fit",
+        "behavior_review",
+    ]
+    symbol: str | None = Field(default=None, pattern=r"^\d{6}\.(SH|SZ)$")
+    question: str | None = Field(default=None, max_length=300)
+
+
+class PersonalAssistantEvidenceReference(BaseModel):
+    """Expose a replayable evidence identity without leaking source payloads."""
+
+    evidence_id: str
+    source: str
+    observed_at: str | None = None
+    data_time: str | None = None
+    run_id: str | None = None
+    report_id: str | None = None
+    strategy_version: str | None = None
+    factor_version: str | None = None
+    evidence_hash: str | None = None
+
+
+class PersonalAssistantQueryResponse(BaseModel):
+    """Return a uniform explanation contract with every execution capability false."""
+
+    service_version: Literal["personal-ai-assistant-v1.0.0"]
+    intent: Literal[
+        "daily_attention",
+        "portfolio_analysis",
+        "stock_reason",
+        "portfolio_fit",
+        "behavior_review",
+    ]
+    status: Literal["published", "degraded", "unavailable"]
+    generated_at: str
+    symbol: str | None
+    question: str | None
+    summary: str
+    key_points: list[str]
+    risks: list[str]
+    uncertainties: list[str]
+    evidence_refs: list[PersonalAssistantEvidenceReference]
+    journal_context: dict[str, Any] | None = None
+    suggested_next_action: Literal[
+        "继续观察",
+        "查看风险详情",
+        "完成复盘",
+        "等待正式收盘run",
+        "记录投资理由",
+    ]
+    model_used: bool
+    read_only_whitelist: list[str]
+    safety: dict[str, Any]
+    used_for_execution: Literal[False]
+    can_affect_execution: Literal[False]
+    can_trade: Literal[False]
+    can_create_orders: Literal[False]
+    can_modify_strategy: Literal[False]
+    can_modify_factor_weights: Literal[False]
+    can_modify_portfolio: Literal[False]
+    can_modify_risk: Literal[False]
+    can_launch_experiment: Literal[False]
+    can_auto_remediate: Literal[False]
 
 
 class MobileSafetyResponse(BaseModel):
@@ -994,7 +1133,7 @@ class AIResearchDashboardResponse(BaseModel):
 class PersonalOSDashboardResponse(BaseModel):
     """Expose the backend-owned Personal Investment OS cockpit."""
 
-    service_version: Literal["personal-investment-os-v1.0.0"]
+    service_version: Literal["personal-investment-os-v1.1.0"]
     generated_at: str
     trade_date: str
     asset_valuation: dict[str, Any]
@@ -1009,6 +1148,9 @@ class PersonalOSDashboardResponse(BaseModel):
     quant_research: dict[str, Any]
     events: list[dict[str, Any]]
     journals: list[dict[str, Any]]
+    reviews: list[dict[str, Any]]
+    reminders: list[dict[str, Any]]
+    review_center: dict[str, Any]
     knowledge: list[dict[str, Any]]
     reports: list[dict[str, Any]]
     counts: dict[str, int]
@@ -1128,12 +1270,24 @@ class PersonalJournalCreateRequest(BaseModel):
     """Create one idempotent investment-process journal entry."""
 
     idempotency_key: UUID
-    entry_type: Literal["buy_reason", "sell_reason", "observation", "review", "lesson"]
+    entry_type: Literal["OBSERVE", "DECISION", "REVIEW", "LESSON"]
     event_id: str | None = Field(default=None, max_length=180)
     trade_date: date
     symbol: str | None = Field(default=None, pattern=r"^\d{6}\.(SH|SZ)$")
     title: str = Field(min_length=1, max_length=120)
-    content: str = Field(min_length=1, max_length=4000)
+    reason: str = Field(min_length=1, max_length=4000)
+    user_text: str = Field(min_length=1, max_length=4000)
+    ai_summary: str | None = Field(default=None, max_length=4000)
+    expected_horizon: str | None = Field(default=None, max_length=120)
+    expected_condition: str | None = Field(default=None, max_length=2000)
+    invalid_condition: str | None = Field(default=None, max_length=2000)
+    risk_notes: str | None = Field(default=None, max_length=2000)
+    related_run_id: str | None = Field(default=None, max_length=240)
+    related_portfolio_snapshot_id: str | None = Field(default=None, max_length=240)
+    related_trade_id: str | None = Field(default=None, max_length=240)
+    review_cycle: Literal["NONE", "T5", "T20", "CUSTOM"] = "NONE"
+    custom_review_date: date | None = None
+    source: Literal["USER", "AI_SAVED"] = "USER"
     outcome: str | None = Field(default=None, max_length=2000)
     lesson: str | None = Field(default=None, max_length=2000)
     evidence_ids: list[str] = Field(default_factory=list, max_length=50)
@@ -1144,9 +1298,39 @@ class PersonalJournalUpdateRequest(BaseModel):
 
     expected_version: int = Field(ge=1, le=1_000_000)
     title: str | None = Field(default=None, min_length=1, max_length=120)
-    content: str | None = Field(default=None, min_length=1, max_length=4000)
+    reason: str | None = Field(default=None, min_length=1, max_length=4000)
+    user_text: str | None = Field(default=None, min_length=1, max_length=4000)
+    expected_horizon: str | None = Field(default=None, max_length=120)
+    expected_condition: str | None = Field(default=None, max_length=2000)
+    invalid_condition: str | None = Field(default=None, max_length=2000)
+    risk_notes: str | None = Field(default=None, max_length=2000)
+    review_due_at: date | None = None
+    review_status: Literal["NOT_DUE", "DUE", "IN_REVIEW", "DONE"] | None = None
     outcome: str | None = Field(default=None, max_length=2000)
     lesson: str | None = Field(default=None, max_length=2000)
+
+
+class InvestmentReviewConfirmRequest(BaseModel):
+    """Confirm one review; unconfirmed drafts are never persisted as memory."""
+
+    idempotency_key: UUID
+    reviewed_at: datetime
+    facts_changed: list[str] = Field(default_factory=list, max_length=50)
+    thesis_status: Literal["STILL_VALID", "WEAKENED", "INVALIDATED", "INSUFFICIENT_EVIDENCE"]
+    risk_status: str = Field(min_length=1, max_length=120)
+    result_summary: str = Field(min_length=1, max_length=4000)
+    mistakes: list[str] = Field(default_factory=list, max_length=30)
+    good_decisions: list[str] = Field(default_factory=list, max_length=30)
+    lesson_candidate: str | None = Field(default=None, max_length=2000)
+    evidence_refs: list[dict[str, Any]] = Field(default_factory=list, max_length=50)
+    draft: dict[str, Any] = Field(default_factory=dict)
+    user_confirmed: Literal[True]
+
+
+class InvestmentReminderStatusRequest(BaseModel):
+    """Update only the in-app acknowledgement state of one reminder."""
+
+    status: Literal["OPEN", "READ", "DISMISSED", "DONE"]
 
 
 class PersonalArchiveRequest(BaseModel):
@@ -1172,3 +1356,188 @@ class PersonalReportRequest(BaseModel):
 
     period_start: date | None = None
     period_end: date | None = None
+
+
+class EngineeringDashboardResponse(BaseModel):
+    """Expose persisted engineering state without running mutable workflows."""
+
+    service_version: Literal["engineering-stabilization-v1.0.0"]
+    versions: dict[str, Any]
+    configuration: dict[str, Any]
+    health: dict[str, Any]
+    backups: list[dict[str, Any]]
+    events: list[dict[str, Any]]
+    counts: dict[str, int]
+    safety: dict[str, bool]
+    can_trade: Literal[False]
+    can_create_orders: Literal[False]
+    can_modify_strategy: Literal[False]
+    can_modify_factor_weights: Literal[False]
+    can_modify_portfolio: Literal[False]
+    can_modify_risk: Literal[False]
+    can_access_broker_credentials: Literal[False]
+
+
+class EngineeringHealthResponse(BaseModel):
+    """Return one immutable four-dimension engineering health evaluation."""
+
+    health_id: str
+    checked_at: str
+    status: Literal["HEALTHY", "DEGRADED", "UNHEALTHY"]
+    score: float = Field(ge=0, le=100)
+    weights: dict[str, float]
+    components: dict[str, Any]
+    config_hash: str
+    version_manifest_hash: str
+    evidence_hash: str
+    safety: dict[str, bool]
+    can_trade: Literal[False]
+    can_create_orders: Literal[False]
+    can_modify_strategy: Literal[False]
+    can_modify_risk: Literal[False]
+
+
+class EngineeringBackupResponse(BaseModel):
+    """Describe one verified local backup without exposing its file contents."""
+
+    schema_version: str
+    backup_id: str
+    created_at: str
+    version_manifest: dict[str, Any]
+    file_count: int = Field(ge=0)
+    byte_count: int = Field(ge=0)
+    files: list[dict[str, Any]]
+    status: Literal["SUCCEEDED"]
+    backup_path: str
+    manifest_hash: str
+    safety: dict[str, bool]
+    can_trade: Literal[False]
+    can_create_orders: Literal[False]
+    can_modify_strategy: Literal[False]
+    can_modify_factor_weights: Literal[False]
+    can_modify_portfolio: Literal[False]
+    can_modify_risk: Literal[False]
+    can_access_broker_credentials: Literal[False]
+
+
+class EngineeringItemsResponse(BaseModel):
+    """Return one bounded engineering audit collection."""
+
+    items: list[dict[str, Any]]
+    safety: dict[str, bool]
+    can_trade: Literal[False]
+    can_create_orders: Literal[False]
+    can_modify_strategy: Literal[False]
+    can_modify_factor_weights: Literal[False]
+    can_modify_portfolio: Literal[False]
+    can_modify_risk: Literal[False]
+    can_access_broker_credentials: Literal[False]
+
+
+class ObservabilitySafetyResponse(BaseModel):
+    """Fix every observability capability outside investment execution."""
+
+    can_trade: Literal[False]
+    can_create_orders: Literal[False]
+    can_modify_strategy: Literal[False]
+    can_modify_factor_weights: Literal[False]
+    can_modify_portfolio: Literal[False]
+    can_modify_risk: Literal[False]
+    can_auto_remediate: Literal[False]
+    can_access_broker_credentials: Literal[False]
+
+
+class ObservabilityDashboardResponse(BaseModel):
+    """Return a server-composed observability dashboard without browser formulas."""
+
+    service_version: Literal["pangu-observability-v1.0.0"]
+    generated_at: str
+    time_range_hours: int = Field(ge=1, le=2160)
+    status: Literal["OBSERVING", "ALERTING", "BREACHED"]
+    metrics: list[dict[str, Any]]
+    traces: list[dict[str, Any]]
+    jobs: list[dict[str, Any]]
+    alerts: list[dict[str, Any]]
+    incidents: list[dict[str, Any]]
+    slos: list[dict[str, Any]]
+    retention: list[dict[str, Any]]
+    source_health_snapshot: dict[str, Any] | None = None
+    counts: dict[str, int]
+    safety: ObservabilitySafetyResponse
+    can_trade: Literal[False]
+    can_create_orders: Literal[False]
+    can_modify_strategy: Literal[False]
+    can_modify_factor_weights: Literal[False]
+    can_modify_portfolio: Literal[False]
+    can_modify_risk: Literal[False]
+    can_auto_remediate: Literal[False]
+    can_access_broker_credentials: Literal[False]
+
+
+class ObservabilityItemsResponse(BaseModel):
+    """Return one bounded observability collection."""
+
+    items: list[dict[str, Any]]
+    safety: ObservabilitySafetyResponse
+    can_trade: Literal[False]
+    can_create_orders: Literal[False]
+    can_modify_strategy: Literal[False]
+    can_modify_factor_weights: Literal[False]
+    can_modify_portfolio: Literal[False]
+    can_modify_risk: Literal[False]
+    can_auto_remediate: Literal[False]
+    can_access_broker_credentials: Literal[False]
+
+
+class ObservabilityTraceResponse(BaseModel):
+    """Return one correlated trace tree."""
+
+    trace_id: str
+    root_operation: str
+    started_at: str
+    completed_at: str | None = None
+    duration_ms: float | None = Field(default=None, ge=0)
+    status: str
+    error_code: str | None = None
+    linked_ids: dict[str, Any]
+    evidence_hash: str | None = None
+    spans: list[dict[str, Any]]
+    can_trade: Literal[False]
+    can_create_orders: Literal[False]
+    can_auto_remediate: Literal[False]
+
+
+class ObservabilityAcknowledgeRequest(BaseModel):
+    """Acknowledge an alert as a local human action."""
+
+    actor: str = Field(default="local-user", min_length=1, max_length=80)
+    note: str = Field(default="", max_length=500)
+
+
+class ObservabilityIncidentCreateRequest(BaseModel):
+    """Create one human-owned engineering incident."""
+
+    title: str = Field(min_length=1, max_length=160)
+    severity: Literal["INFO", "WARNING", "ERROR", "CRITICAL"]
+    impact: str = Field(default="", max_length=2000)
+    root_cause: str = Field(default="", max_length=2000)
+    links: list[dict[str, str]] = Field(default_factory=list, max_length=50)
+    actor: str = Field(default="local-user", min_length=1, max_length=80)
+
+
+class ObservabilityIncidentStatusRequest(BaseModel):
+    """Move an incident through one optimistic human state transition."""
+
+    status: Literal["INVESTIGATING", "MITIGATED", "RESOLVED", "CLOSED"]
+    expected_version: int = Field(ge=1, le=1_000_000)
+    actor: str = Field(default="local-user", min_length=1, max_length=80)
+    note: str = Field(min_length=1, max_length=800)
+    root_cause: str | None = Field(default=None, max_length=2000)
+    resolution_note: str | None = Field(default=None, max_length=2000)
+
+
+class ObservabilityRetentionRunRequest(BaseModel):
+    """Execute one previously persisted retention plan by exact hash."""
+
+    retention_id: str = Field(pattern=r"^retention-[a-f0-9]{32}$")
+    plan_hash: str = Field(pattern=r"^[a-f0-9]{64}$")

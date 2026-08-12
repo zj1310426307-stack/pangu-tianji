@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from argparse import ArgumentParser
 import json
+import os
 from pathlib import Path
 import sys
 from typing import Any
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent
+PROJECT_ROOT = Path(os.path.abspath(__file__)).parent
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 from ashare_agent.scheduler import DailyScheduler, JobManager
@@ -38,6 +39,8 @@ def _scheduler():
     from ashare_agent.services.daily_investment_os_service import (
         DailyInvestmentOSService,
     )
+    from pangu.config import ConfigCenter
+    from pangu.observability.service import ObservabilityService
 
     service = DailyInvestmentOSService(PROJECT_ROOT)
     daily = getattr(service, "daily", None)
@@ -47,11 +50,18 @@ def _scheduler():
         if callable(trading_days)
         else None
     )
+    config = ConfigCenter(PROJECT_ROOT).load()
+    observability = ObservabilityService(
+        PROJECT_ROOT,
+        dict(config.configuration["observability"]),
+        config.config_hash,
+    )
     manager = JobManager(
         service,
         report_center=getattr(service, "report_center", None),
         registry=getattr(service, "registry", None),
         trading_day_provider=official_calendar,
+        observability_jobs=observability.jobs,
     )
     return service, DailyScheduler(manager)
 

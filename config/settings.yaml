@@ -39,7 +39,9 @@ paper_account:
   enabled: true
   automatic_execution: true
   initial_cash: 100000.0
-  max_positions: 5
+  # 0 disables only the position-count cap. Cash, single-name exposure,
+  # total exposure, lot-size, T+1 and frozen-quantity controls remain active.
+  max_positions: 0
   target_position_pct: 0.15
   max_total_exposure_pct: 0.60
   hold_rank: 20
@@ -114,6 +116,13 @@ daily_investment_os:
   weekly_time: "16:00"
   email_enabled: false
   email_starttls: true
+
+investment_review_loop:
+  # Simple deterministic thresholds; no model/anomaly scoring is used.
+  score_change_threshold: 15.0
+  candidate_hold_rank: 20
+  reminder_channel: "in_app_only"
+  external_notifications_enabled: false
 
 ai_quant_research:
   enabled: true

@@ -236,6 +236,10 @@ class DailyResearchService:
         market_open = self._market_is_open(now)
         blocked_reason: str | None = None
         sell_blocked_reason: str | None = None
+        # Direct quote callers must see the same authoritative T+1 state as the
+        # dashboard/workbench. Releasing prior-day shares is an account-state
+        # refresh only; it never changes position quantity or creates an order.
+        self.paper.roll_t1(now.date())
         account_view = self.paper.snapshot()
         position = next(
             (item for item in account_view["positions"] if item["symbol"] == ticker["thscode"]),
@@ -767,7 +771,22 @@ class DailyResearchService:
                     plan_state = "expired"
             except Exception:
                 plan_state = "calendar_unavailable"
+        # Account reads are also the settlement boundary for the local paper
+        # ledger. Releasing prior-day acquisitions here keeps every consumer of
+        # the daily endpoint aligned with A-share T+1 without creating orders.
+        self.paper.roll_t1(now.date())
         account = self.paper.snapshot()
+        held_symbols = [
+            str(item["symbol"])
+            for item in account.get("positions", [])
+            if item.get("symbol")
+        ]
+        research_targets = [
+            str(symbol)
+            for symbol in ((plan or {}).get("targets") or [])
+            if symbol
+        ]
+        next_session_symbols = list(dict.fromkeys(held_symbols + research_targets))
         portfolio_center = self._compose_portfolio_center(plan, account)
         return {
             "version": "1.0.0", "paper_automation_enabled": enabled,
@@ -779,6 +798,21 @@ class DailyResearchService:
             "preview_state": preview_state, "collection_status": status,
             "automation_execution_ready": execution_ready,
             "plan_state": plan_state,
+            "position_as_of_trade_date": now.date().isoformat(),
+            "position_refresh_seconds": 15,
+            "settlement_rule": "A_SHARE_T_PLUS_1",
+            "next_session_plan": {
+                "scope": "all_actual_positions_and_research_targets",
+                "symbols": next_session_symbols,
+                "position_symbols": held_symbols,
+                "research_target_symbols": research_targets,
+                "position_count": len(held_symbols),
+                "plan_symbol_count": len(next_session_symbols),
+                "position_count_limit_enabled": int(
+                    self.raw["paper_account"].get("max_positions", 0)
+                ) > 0,
+                "message": "全部实际持仓均进入次日检查；新增研究目标仍受现金、仓位和风险约束。",
+            },
             "account": account,
             "asset_valuation": account["asset_valuation"],
             "portfolio_risk_center": portfolio_center,

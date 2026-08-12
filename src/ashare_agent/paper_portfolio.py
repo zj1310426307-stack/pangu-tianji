@@ -327,7 +327,8 @@ class PaperPortfolio:
             elif account["drawdown"] <= -float(self.config["max_drawdown_pct"]):
                 rejection = "组合回撤已达到停止开仓线"
             elif (
-                position is None
+                int(self.config["max_positions"]) > 0
+                and position is None
                 and symbol not in reserved_symbols
                 and len(reserved_symbols) >= int(self.config["max_positions"])
             ):
@@ -1070,7 +1071,7 @@ class PaperPortfolio:
             max_positions = int(self.config.get("max_positions", 3))
             ranked_symbols = targets
             for symbol in ranked_symbols:
-                if len(held) >= max_positions:
+                if max_positions > 0 and len(held) >= max_positions:
                     break
                 if symbol in held or symbol in exited_symbols or symbol not in quotes:
                     continue
