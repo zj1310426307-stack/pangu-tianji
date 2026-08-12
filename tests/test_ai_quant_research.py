@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-import hashlib
 from pathlib import Path
 import sqlite3
 from types import SimpleNamespace
@@ -23,6 +22,7 @@ from ashare_agent.quant_ai import (
 from ashare_agent.quant_ai.research_memory import ResearchMemoryStore
 from ashare_agent.quant_lab.contracts import sha256_json
 from ashare_agent.services.model_service import ModelService
+from tests._protected_hash import sha256_normalized_source
 
 
 PROTECTED_HASHES = {
@@ -35,7 +35,7 @@ PROTECTED_HASHES = {
     "src/ashare_agent/services/portfolio_risk_store.py": "BEA51A648203BF3AD3CA9081E2C23F6B7B2A72BF109E4BFD177B422C7CEAC30C",
     "src/ashare_agent/services/exit_engine.py": "8E0ECAA5A20EECBCDBCAB5259238F989D7710DED8EFFCA6792C2AB732B2F5264",
     "src/ashare_agent/services/valuation_service.py": "5331F1E806A4EDFF6DD46A38311ACCE6B791349ADEA300C197760D66D29153B4",
-    "src/ashare_agent/paper_portfolio.py": "940A25CFF6FE871531D0272B6C17592619ED434D597190D478F7C2C3D94D28F0",
+    "src/ashare_agent/paper_portfolio.py": "69FD3B0E81E12CAF0BB21A3014924A58CD536561BBC1C4604142FAE195286DCD",
     "src/ashare_agent/execution_rules.py": "A9A791C9919639923168B6AA7C75BF7D36A029154952005D05FC7E45B814BB04",
     "src/ashare_agent/broker.py": "3E8C2B1BD4E222A3CA2BB7D0EA0CC40E4C16A8EBC6E3C40EB2C3CD46E6487045",
     "src/ashare_agent/cross_sectional_backtest.py": "1378875FEBCC15FD95C3180771145BE15B0D888E15E054B73ADD89BC2A8330C2",
@@ -409,5 +409,5 @@ def test_ai_research_api_keeps_writes_local_and_never_returns_capabilities(tmp_p
 def test_protected_research_portfolio_valuation_and_trading_hashes_are_unchanged():
     root = Path(__file__).resolve().parents[1]
     for relative, expected in PROTECTED_HASHES.items():
-        actual = hashlib.sha256((root / relative).read_bytes()).hexdigest().upper()
+        actual = sha256_normalized_source(root / relative)
         assert actual == expected

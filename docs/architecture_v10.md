@@ -101,6 +101,14 @@ STOP_TRIGGERED
 - 复盘同时输出费用分解、换手、胜率、Profit Factor、平均盈亏、净值最佳/最差日、MFE/MAE、持有天数、止损距离和个股盈亏贡献；
 - 为兼容旧接口保留的扁平账户字段仍由 `ValuationService` 派生，不构成第二估值源。
 
+Workbench `1.1.0` 将估值观察时间与持久化净值状态分层：
+
+- `valuation_observed_at` / `valuation_trade_date` 表示当前持仓行情观察时间和上海交易日；
+- `source_nav_date` 只表示最近一条持久化 `paper_nav` 日期，不代表当前行情日期；
+- `nav_snapshot_state` / `nav_snapshot_message` 说明本次是否安全持久化当日净值及跳过或失败原因；
+- 只有非陈旧、全持仓报价完整、观察日与工作台交易日一致且来源为 `ths_finance_snapshot` 的快照才调用既有 `PaperPortfolio.mark_to_market()`；
+- 持久化失败不隐藏已成功的只读估值，并生成确定性 `NAV_PERSISTENCE_FAILED` 风险提示；前端持仓徽标只显示当前估值时间。
+
 ## 网页交互与状态所有权
 
 网页按“今日 → 选股与模拟 → 持仓复盘 → 天机助手”组织，不在前端复制后端业务状态：

@@ -1,0 +1,5 @@
+strategy:
+  version: cross-sectional-v2.0.0
+  factor_version: cross-sectional-v1.0.0
+  configuration_owner: research_pipeline
+  mutable_by_engineering_center: false

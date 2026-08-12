@@ -1,4 +1,13 @@
-import { apiRequest } from "/generated/client.js?v=20260811-1";
+import { apiRequest } from "/generated/client.js?v=20260812-3";
+import {
+  AICard,
+  AssetCard,
+  HoldingHealthCard,
+  MarketCard,
+  RiskCard,
+  StockCard,
+  TaskCard,
+} from "/components/dashboard/dashboard-components.js?v=20260812-1";
 
 const state = {
   daily: null,
@@ -13,7 +22,7 @@ const state = {
   paperOrderPreview: null,
   brokerMatchTimer: null,
   brokerMatchInFlight: false,
-  activeWorkspace: "personalos",
+  activeWorkspace: "dashboard",
   currentRanking: null,
   selectedCandidateSymbol: null,
   rankingQuery: "",
@@ -42,10 +51,15 @@ const state = {
   strategyLab: { dashboard: null, selectedReview: null, selectedPromotion: null, inFlight: false },
   aiResearch: { dashboard: null, selectedReport: null, selectedAgent: "strategy_analyst", inFlight: false },
   personalOS: { dashboard: null, inFlight: false },
+  investmentDashboard: { snapshot: null, inFlight: false },
   dataIntelligence: { dashboard: null, inFlight: false, actionInFlight: false },
   strategyEvolution: {
     dashboard: null, inFlight: false, actionInFlight: false, selectedBranchKey: null,
   },
+  engineering: { dashboard: null, inFlight: false, actionInFlight: false },
+  observability: { dashboard: null, inFlight: false, actionInFlight: false },
+  personalAssistant: { intent: "daily_attention", inFlight: false, answer: null },
+  investmentReview: { dashboard: null, draft: null, journalId: null, inFlight: false },
 };
 
 const byId = (id) => document.getElementById(id);
@@ -53,36 +67,70 @@ const byId = (id) => document.getElementById(id);
 function installPersonalWorkspaceTab() {
   const nav = document.querySelector(".workspace-nav");
   if (!nav || nav.querySelector('[data-workspace="personalos"]')) return;
-  nav.querySelectorAll(".workspace-tab").forEach((tab) => {
-    tab.classList.remove("active");
-    tab.setAttribute("aria-selected", "false");
-  });
   const tab = document.createElement("button");
-  tab.className = "workspace-tab active";
+  tab.className = "workspace-tab";
   tab.type = "button";
   tab.setAttribute("role", "tab");
   tab.dataset.workspace = "personalos";
   tab.setAttribute("aria-controls", "workspace-personalos");
-  tab.setAttribute("aria-selected", "true");
+  tab.setAttribute("aria-selected", "false");
   const index = document.createElement("span");
-  index.textContent = "00";
+  index.textContent = "11";
   tab.append(index, document.createTextNode("总控"));
-  nav.prepend(tab);
+  nav.append(tab);
+}
+
+function installOperatingWorkspaceTab() {
+  const nav = document.querySelector(".workspace-nav");
+  if (!nav || nav.querySelector('[data-workspace="overview"]')) return;
+  const tab = document.createElement("button");
+  tab.className = "workspace-tab";
+  tab.type = "button";
+  tab.setAttribute("role", "tab");
+  tab.dataset.workspace = "overview";
+  tab.setAttribute("aria-controls", "workspace-overview");
+  tab.setAttribute("aria-selected", "false");
+  const index = document.createElement("span");
+  index.textContent = "12";
+  tab.append(index, document.createTextNode("运营"));
+  nav.append(tab);
 }
 const money = (value) => new Intl.NumberFormat("zh-CN", { style: "currency", currency: "CNY", maximumFractionDigits: 2 }).format(Number(value || 0));
 const fractionPct = (value) => `${(Number(value || 0) * 100).toFixed(2)}%`;
 const time = (value) => value ? new Date(value).toLocaleString("zh-CN", { hour12: false }) : "—";
+function valuationBadgeLabel(value) {
+  if (!value) return "估值时间未知";
+  const observed = new Date(value);
+  if (Number.isNaN(observed.getTime())) return "估值时间未知";
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("zh-CN", {
+      timeZone: "Asia/Shanghai",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).formatToParts(observed).map((part) => [part.type, part.value]),
+  );
+  return `估值 ${parts.month}-${parts.day} ${parts.hour}:${parts.minute}`;
+}
 const text = (id, value) => { byId(id).textContent = value ?? "—"; };
 const WORKSPACE_TITLES = {
+  dashboard: "投资驾驶舱",
   personalos: "我的投资操作系统",
   overview: "今日总览",
-  market: "选股与模拟",
-  etf: "持仓复盘",
-  assistant: "天机助手",
+  market: "股票研究",
+  etf: "我的持仓",
+  review: "投资复盘",
+  settings: "设置",
+  assistant: "AI投资助手",
+  copilotadvanced: "专业AI报告与模型设置",
   strategy: "策略实验室",
   quantai: "AI量化研究",
   dataintel: "数据监控中心",
   evolution: "策略进化中心",
+  engineering: "工程健康中心",
+  observability: "可观测中心",
 };
 
 const FACTOR_LABELS = [
@@ -98,8 +146,13 @@ const LIVE_MODULE_LABELS = {
   operations: "投资运营",
   data: "数据健康",
   evolution: "策略健康",
+  engineering: "工程健康",
+  observability: "可观测",
   quote: "所选股票行情",
   candidates: "全市场候选重算",
+  dashboard: "投资驾驶舱",
+  personal: "个人投资闭环",
+  journal: "日志与复盘",
 };
 
 const SYNC_JOB_CONFIG = {
@@ -109,8 +162,18 @@ const SYNC_JOB_CONFIG = {
   operating: { operation: "get_investment_os", moduleKeys: ["operations"], timeoutMs: 20000 },
   data: { operation: "get_data_intelligence_dashboard", moduleKeys: ["data"], timeoutMs: 20000 },
   evolution: { operation: "get_strategy_evolution_center", moduleKeys: ["evolution"], timeoutMs: 20000 },
+  engineering: { operation: "get_engineering_dashboard", moduleKeys: ["engineering"], timeoutMs: 20000 },
+  observability: { operation: "get_observability_dashboard", moduleKeys: ["observability"], timeoutMs: 20000 },
+  dashboard: { operation: "get_investment_dashboard_overview", moduleKeys: ["dashboard"], timeoutMs: 20000 },
+  personal: { operation: "get_personal_investment_os", moduleKeys: ["personal"], timeoutMs: 30000 },
+  reviewloop: { operation: "get_investment_review_loop", moduleKeys: ["journal"], timeoutMs: 20000 },
   quote: { operation: "get_live_market_quote", moduleKeys: ["quote"], timeoutMs: 15000 },
 };
+
+const CORE_SYNC_JOBS = [
+  "system", "daily", "review", "operating", "dashboard", "personal",
+  "reviewloop", "data", "evolution", "engineering", "observability",
+];
 
 state.syncJobs = Object.fromEntries(Object.keys(SYNC_JOB_CONFIG).map((key) => [key, {
   inFlight: false,
@@ -150,7 +213,7 @@ function setActionOverlay(visible, title = "正在处理", message = "请稍候�
 
 // 工作区只管理前端视图；研究、模拟账户和安全状态仍由后端统一持有。
 function activateWorkspace(name, { updateHash = true, scroll = true } = {}) {
-  const workspace = Object.hasOwn(WORKSPACE_TITLES, name) ? name : "personalos";
+  const workspace = Object.hasOwn(WORKSPACE_TITLES, name) ? name : "dashboard";
   state.activeWorkspace = workspace;
   document.querySelectorAll(".workspace-view").forEach((view) => {
     view.hidden = view.dataset.workspaceView !== workspace;
@@ -179,12 +242,17 @@ function activateWorkspace(name, { updateHash = true, scroll = true } = {}) {
     stopBrokerMatching();
   }
   if (workspace === "overview") void loadInvestmentOperatingCenter({ quiet: true });
+  if (workspace === "dashboard") void loadInvestmentDashboard({ quiet: true });
   if (workspace === "personalos") void loadPersonalInvestmentOS({ quiet: true });
-  if (workspace === "assistant") void loadCopilotWorkspace({ quiet: true });
+  if (workspace === "review") void loadInvestmentReviewLoop({ quiet: true });
+  if (workspace === "settings") void loadSettingsSummary({ quiet: true });
+  if (workspace === "copilotadvanced") void loadCopilotWorkspace({ quiet: true });
   if (workspace === "strategy") void loadStrategyLab({ quiet: true });
   if (workspace === "quantai") void loadAIResearchCenter({ quiet: true });
   if (workspace === "dataintel") void loadDataIntelligence({ quiet: true });
   if (workspace === "evolution") void loadStrategyEvolution({ quiet: true });
+  if (workspace === "engineering") void loadEngineeringCenter({ quiet: true });
+  if (workspace === "observability") void loadObservabilityCenter({ quiet: true });
 }
 
 function badge(label, tone = "muted") {
@@ -286,6 +354,21 @@ function applySyncPayload(jobKey, payload) {
     markLiveModule("review", "ok", `${payload?.positions?.length || 0}只持仓 · ${clockLabel()}`);
     return;
   }
+  if (jobKey === "dashboard") {
+    renderInvestmentDashboard(payload);
+    markLiveModule("dashboard", "ok", `${payload?.holding_health?.length || 0}只持仓 · ${clockLabel()}`);
+    return;
+  }
+  if (jobKey === "personal") {
+    renderPersonalInvestmentOS(payload);
+    markLiveModule("personal", "ok", `${payload?.portfolio?.positions?.length || 0}只持仓 · ${clockLabel()}`);
+    return;
+  }
+  if (jobKey === "reviewloop") {
+    renderInvestmentReviewLoop(payload);
+    markLiveModule("journal", "ok", `${payload?.counts?.pending_reviews || 0}条待复盘 · ${clockLabel()}`);
+    return;
+  }
   if (jobKey === "operating") {
     renderInvestmentOperatingSummary(payload);
     const unread = Number(payload?.counts?.unread_notification_count ?? payload?.unread_notification_count ?? 0);
@@ -303,6 +386,19 @@ function applySyncPayload(jobKey, payload) {
     const latest = payload?.health_history?.[0] || {};
     const tone = ["HEALTHY", "WATCH"].includes(latest.status) ? "ok" : latest.status ? "error" : "paused";
     markLiveModule("evolution", tone, `${latest.status || "等待观察"} · ${latest.score ?? "—"}分 · ${clockLabel()}`);
+    return;
+  }
+  if (jobKey === "engineering") {
+    renderEngineeringCenter(payload);
+    const health = payload?.health || {};
+    const tone = health.status === "HEALTHY" ? "ok" : health.status === "NOT_EVALUATED" ? "paused" : "error";
+    markLiveModule("engineering", tone, `${health.status || "等待检查"} · ${health.score ?? "—"}分 · ${clockLabel()}`);
+    return;
+  }
+  if (jobKey === "observability") {
+    renderObservabilityCenter(payload);
+    const tone = payload.status === "OBSERVING" ? "ok" : payload.status === "ALERTING" ? "error" : "paused";
+    markLiveModule("observability", tone, `${payload.status || "等待观测"} · ${payload.counts?.active_alert_count || 0}条活动告警 · ${clockLabel()}`);
   }
 }
 
@@ -363,7 +459,7 @@ function renderLiveSyncCenter() {
     return;
   }
 
-  const coreJobs = ["system", "daily", "review", "operating", "data", "evolution"].map((key) => state.syncJobs[key]);
+  const coreJobs = CORE_SYNC_JOBS.map((key) => state.syncJobs[key]);
   const coreDue = Math.min(...coreJobs.map((job) => secondsUntil(job.nextAt)));
   const runningCount = coreJobs.filter((job) => job.inFlight).length + Number(state.syncJobs.quote.inFlight) + Number(state.candidateRefreshInFlight);
   const retryCount = coreJobs.filter((job) => job.failures > 0).length;
@@ -374,7 +470,7 @@ function renderLiveSyncCenter() {
     : isMarketMonitoringWindow()
       ? `候选 ${Math.ceil(secondsUntil(state.candidateAutoNextAt) / 60)} 分钟`
       : "候选等待交易时段";
-  text("liveSyncSummary", `6条独立通道 · 每${state.liveSyncIntervalSeconds}秒 · ${candidateText}`);
+  text("liveSyncSummary", `${CORE_SYNC_JOBS.length}条独立通道 · 每${state.liveSyncIntervalSeconds}秒 · ${candidateText}`);
   text("liveSyncCountdown", runningCount ? `${runningCount}个模块更新中` : retryCount ? `${retryCount}个模块等待重试` : `${coreDue}秒后同步`);
 }
 
@@ -404,7 +500,7 @@ function tickLiveScheduler() {
     renderLiveSyncCenter();
     return;
   }
-  ["system", "daily", "review", "operating", "data", "evolution"].forEach((jobKey) => {
+  CORE_SYNC_JOBS.forEach((jobKey) => {
     if (Date.now() >= state.syncJobs[jobKey].nextAt) void syncModuleJob(jobKey);
   });
   if (state.quotePollingActive && state.networkOnline && Date.now() >= state.syncJobs.quote.nextAt) {
@@ -417,7 +513,7 @@ function tickLiveScheduler() {
 function startLiveSync({ immediate = false } = {}) {
   stopLiveSync();
   if (!state.liveSyncEnabled || document.visibilityState !== "visible") return;
-  if (immediate) ["system", "daily", "review", "operating", "data", "evolution"].forEach((key) => { state.syncJobs[key].nextAt = 0; });
+  if (immediate) CORE_SYNC_JOBS.forEach((key) => { state.syncJobs[key].nextAt = 0; });
   if (!state.candidateAutoNextAt) state.candidateAutoNextAt = Date.now() + state.candidateAutoIntervalSeconds * 1000;
   state.liveSyncCountdownTimer = window.setInterval(tickLiveScheduler, 1000);
   tickLiveScheduler();
@@ -549,8 +645,12 @@ function renderDaily(payload) {
   const valuation = payload.asset_valuation;
   text("researchDate", ranking?.research_date || "暂无");
   text("marketCoverage", ranking ? `全市场 ${ranking.universe_count} · 过滤后 ${ranking.eligible_count}` : "等待全市场采集");
-  text("targetCount", plan?.targets?.length || 0);
-  text("nextPlan", plan ? plan.targets.join(" · ") : "生成后仅下一交易日有效");
+  const nextSessionPlan = payload.next_session_plan || {};
+  const nextSessionSymbols = nextSessionPlan.symbols || plan?.targets || [];
+  text("targetCount", nextSessionSymbols.length);
+  text("nextPlan", nextSessionSymbols.length
+    ? nextSessionSymbols.join(" · ")
+    : "生成后仅下一交易日有效");
   text("paperEquity", money(valuation.equity));
   text("paperCash", `现金 ${money(valuation.cash)} · 市值 ${money(valuation.market_value)}`);
   text("deskEquity", money(valuation.equity));
@@ -562,8 +662,10 @@ function renderDaily(payload) {
   text("schedule", `${payload.schedule.research} · ${payload.schedule.execute} · ${payload.schedule.monitor}`);
   text("lastAction", payload.last_error ? `失败：${payload.last_error}` : (payload.last_action || "暂无操作"));
   const targets = plan?.targets || [];
-  text("marketPlanCount", targets.length);
-  text("marketPlanSymbols", targets.length ? targets.join(" · ") : "尚未生成次日目标。完成收盘研究后自动形成计划。");
+  text("marketPlanCount", nextSessionSymbols.length);
+  text("marketPlanSymbols", nextSessionSymbols.length
+    ? `${nextSessionSymbols.join(" · ")} · ${nextSessionPlan.message || "全部持仓已纳入次日检查"}`
+    : "尚未生成次日目标。完成收盘研究后自动形成计划。");
   const planLabels = {execution_window_open: "执行窗口开放", awaiting_next_session: "等待下一交易日", awaiting_execution_window: "等待09:35", expired: "计划已过期", calendar_unavailable: "日历不可用", none: "等待计划"};
   text("marketPlanState", planLabels[payload.plan_state] || "计划不可执行");
   byId("marketPlanState").className = `badge ${payload.automation_execution_ready ? "badge-success" : "badge-muted"}`;
@@ -589,6 +691,8 @@ function renderDaily(payload) {
   renderGuidedAction(payload);
   renderRanking(ranking);
   renderManualCandidates(ranking);
+  // The daily payload renders first; Workbench then replaces this table with
+  // the canonical, quote-valued ledger snapshot in the same refresh cycle.
   renderPositions(account);
   renderPaperAudit();
   if (state.currentQuote) renderLiveQuote(state.currentQuote);
@@ -805,7 +909,23 @@ function renderCandidateDetail(item) {
   trade.className = "button button-primary";
   trade.dataset.tradeSymbol = item.symbol;
   trade.textContent = "带入模拟交易票据";
-  actions.append(trade);
+  const observe = document.createElement("button");
+  observe.type = "button";
+  observe.className = "button button-ghost";
+  observe.dataset.journalAction = "OBSERVE";
+  observe.dataset.journalSymbol = item.symbol;
+  observe.dataset.journalTitle = `观察 ${item.name || item.symbol}`;
+  observe.dataset.journalReason = `当前排名 ${item.rank ?? "—"}，评分 ${item.score ?? "—"}。我的观察是：`;
+  observe.textContent = "记录观察";
+  const decision = document.createElement("button");
+  decision.type = "button";
+  decision.className = "button button-ghost";
+  decision.dataset.journalAction = "DECISION";
+  decision.dataset.journalSymbol = item.symbol;
+  decision.dataset.journalTitle = `投资理由 ${item.name || item.symbol}`;
+  decision.dataset.journalReason = "我做出这项投资判断的理由是：";
+  decision.textContent = "记录投资理由";
+  actions.append(trade, observe, decision);
   container.append(header, factors, evidence, actions);
 }
 
@@ -1095,7 +1215,7 @@ function renderPositions(account) {
     row.append(action);
     body.append(row);
   }
-  text("positionCount", `${positions.length} / ${account.limits?.max_positions ?? 5}`);
+  text("positionCount", `${positions.length}只 · 全部实际持仓`);
   byId("positionEmpty").classList.toggle("hidden", positions.length > 0);
 }
 
@@ -1169,10 +1289,8 @@ async function matchBrokerOrders({ quiet = false } = {}) {
     const count = result.matched?.length || 0;
     text("brokerMatchState", count ? `本轮成交 ${count} 笔` : `等待价格 · ${result.waiting?.length || 0} 笔`);
     byId("brokerMatchState").className = `badge ${count ? "badge-success" : "badge-muted"}`;
-    await Promise.all([
-      syncModuleJob("daily", { source: "match", quiet: true }),
-      count ? syncModuleJob("review", { source: "match", quiet: true }) : Promise.resolve(),
-    ]);
+    if (count) await refreshAccountAuthorities("match");
+    else await syncModuleJob("daily", { source: "match", quiet: true });
     if (count) showToast("模拟限价单已成交", `本轮按同花顺快照撮合 ${count} 笔。`, "success", 4200);
   } catch (error) {
     text("brokerMatchState", "撮合暂停");
@@ -1204,7 +1322,7 @@ async function cancelBrokerOrder(clientOrderId) {
       timeoutMs: 30000,
     });
     showToast("模拟撤单成功", `${result.order.symbol} · ${result.order.quantity} 股`, "success", 3500);
-    await syncModuleJob("daily", { source: "cancel", quiet: true });
+    await refreshAccountAuthorities("cancel");
   } catch (error) {
     showError(`模拟撤单失败：${error.message}`);
   }
@@ -1212,8 +1330,17 @@ async function cancelBrokerOrder(clientOrderId) {
 
 function renderWorkbench(payload) {
   state.workbench = payload;
-  text("sourceBadge", payload.source_nav_date ? `净值 ${payload.source_nav_date}` : "当前账本");
-  byId("sourceBadge").className = `badge ${payload.source_nav_date ? "badge-info" : "badge-muted"}`;
+  renderPositions({
+    ...(payload.account || {}),
+    positions: payload.positions || [],
+  });
+  renderSimpleHoldings(payload);
+  const currentValuation = payload.valuation_observed_at || payload.valuation?.observed_at;
+  text("sourceBadge", valuationBadgeLabel(currentValuation));
+  byId("sourceBadge").className = `badge badge-${
+    currentValuation ? (payload.valuation?.stale ? "warning" : "info") : "muted"
+  }`;
+  byId("sourceBadge").title = payload.nav_snapshot_message || "当前估值时间与最近持久化净值日分开显示";
   text("workbenchProvenance", payload.provenance);
   const grid = byId("watchlistGrid");
   grid.replaceChildren();
@@ -1287,6 +1414,61 @@ function renderWorkbench(payload) {
   if (state.status?.model) renderModelStatus(state.status.model);
 }
 
+function renderSimpleHoldings(payload = {}) {
+  const list = byId("simpleHoldingList");
+  if (!list) return;
+  const positions = payload.positions || [];
+  const researched = Object.fromEntries(
+    (state.investmentDashboard.snapshot?.holding_health || []).map((item) => [item.symbol, item]),
+  );
+  list.replaceChildren();
+  positions.forEach((position) => {
+    const evidence = researched[position.symbol] || {};
+    const card = document.createElement("article");
+    card.className = "simple-holding-card";
+    const title = document.createElement("div");
+    const detail = document.createElement("dl");
+    const exit = evidence.exit_signal || evidence.exit || {};
+    title.innerHTML = "<strong></strong><span></span>";
+    title.querySelector("strong").textContent = `${position.name || position.symbol} · ${position.symbol}`;
+    title.querySelector("span").textContent = position.unrealized_pnl == null ? "收益不可用" : `${money(position.unrealized_pnl)} · ${fractionPct(position.unrealized_pnl_pct)}`;
+    const fields = [
+      ["持仓 / 可卖", `${position.quantity ?? "—"} / ${position.sellable_quantity ?? position.available_quantity ?? "—"} 股`],
+      ["成本 / 估值", `${position.average_cost ?? "—"} / ${position.last_price ?? "—"}`],
+      ["研究评分", evidence.score ?? "暂无正式评分"],
+      ["当前风险", evidence.risk_level || evidence.risk?.level || "暂无风险证据"],
+      ["风险变化", "暂无历史风险序列"],
+      ["退出证据", exit.reason || exit.signal || (position.pending_exit ? "已登记退出" : "暂无退出信号")],
+    ];
+    fields.forEach(([label, value]) => {
+      const row = document.createElement("div");
+      row.innerHTML = "<dt></dt><dd></dd>";
+      row.querySelector("dt").textContent = label;
+      row.querySelector("dd").textContent = value;
+      detail.append(row);
+    });
+    const actions = document.createElement("div");
+    actions.className = "button-row holding-journal-actions";
+    [["DECISION", "记录继续持有理由", "我决定继续持有，理由是："], ["DECISION", "记录减仓 / 退出理由", "我考虑减仓或退出，理由是："]].forEach(([entryType, label, reason]) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "button button-ghost button-compact";
+      button.dataset.journalAction = entryType;
+      button.dataset.journalSymbol = position.symbol;
+      button.dataset.journalTitle = `${label.replace("记录", "")} ${position.name || position.symbol}`;
+      button.dataset.journalReason = reason;
+      button.textContent = label;
+      actions.append(button);
+    });
+    card.append(title, detail, actions);
+    list.append(card);
+  });
+  byId("simpleHoldingEmpty").classList.toggle("hidden", positions.length > 0);
+  text("simpleHoldingState", positions.length
+    ? `${positions.length}只 · T+1 ${payload.position_as_of_trade_date || "—"} · ${time(payload.generated_at)}`
+    : `当前空仓 · ${payload.position_as_of_trade_date || "—"}`);
+}
+
 // 复盘指标只使用本地模拟账户账本，不读取历史ETF回测或固定研究池。
 function renderPortfolioMetrics(payload) {
   const account = payload.account;
@@ -1307,7 +1489,7 @@ function renderPortfolioMetrics(payload) {
   text("metricUnrealized", money(valuationSummary.unrealized_pnl));
   text("metricDrawdown", fractionPct(valuationSummary.max_drawdown));
   text("metricSharpe", `${valuationSummary.position_count}只`);
-  text("metricVolatility", `${valuationSummary.available_position_count}只可卖 · 最多${account.limits?.max_positions ?? "—"}只`);
+  text("metricVolatility", `${valuationSummary.available_position_count}只可卖 · 全部${valuationSummary.position_count}只持仓`);
   text("metricFees", money(valuationSummary.total_fees));
   text("metricFeeDrag", `费用侵蚀 ${fractionPct(valuationSummary.fee_drag_pct)} · 拒单 ${payload.activity_summary.rejection_count}`);
   text("metricTurnover", money(valuationSummary.turnover));
@@ -1605,6 +1787,25 @@ function renderPersonalInvestmentOS(payload) {
   renderPersonalProfile(payload.investor_profile || {});
   renderPersonalCoach(payload.coach || {});
   renderPersonalCollections(payload);
+  renderSimpleInvestmentReview(payload);
+}
+
+function renderSimpleInvestmentReview(payload = {}) {
+  if (!byId("simpleReviewResult")) return;
+  const valuation = payload.asset_valuation || {};
+  const activity = payload.portfolio?.activity_summary || {};
+  const coach = payload.coach || {};
+  const activeJournals = (payload.journals || []).filter((item) => item.status === "active");
+  byId("simpleReviewResult").textContent = valuation.pnl == null
+    ? "当日或累计收益证据不可用，未用其他数字代替。"
+    : `账户盈亏 ${money(valuation.pnl)}；估值时间 ${time(valuation.valued_at)}。`;
+  byId("simpleReviewPlan").textContent = `${activity.trade_count || 0}笔成交、${activity.order_count || 0}笔委托；暂无结构化“计划与实际”映射时不推断偏差。`;
+  byId("simpleReviewDiscipline").textContent = (coach.improvements || [])[0]
+    || (coach.data_gaps || [])[0]
+    || "维持证据先行、风险优先和定期复盘纪律。";
+  byId("simpleReviewPending").textContent = activeJournals.length
+    ? `${activeJournals.length}篇有效日志；最近：${activeJournals[0].title || activeJournals[0].entry_type}`
+    : "暂无待复盘日志，可在个人投资操作系统记录投资理由。";
 }
 
 async function loadPersonalInvestmentOS({ quiet = false } = {}) {
@@ -1616,6 +1817,232 @@ async function loadPersonalInvestmentOS({ quiet = false } = {}) {
     if (!quiet) showToast("个人操作系统同步失败", error.message, "error", 6500);
   } finally {
     state.personalOS.inFlight = false;
+  }
+}
+
+async function loadSettingsSummary({ quiet = false } = {}) {
+  try {
+    const [status, daily] = await Promise.all([
+      apiRequest("get_status", { timeoutMs: 15000 }),
+      apiRequest("get_daily_research", { timeoutMs: 20000 }),
+    ]);
+    const model = status.model || {};
+    text("settingsModelName", model.model || "未配置");
+    text("settingsModelStatus", model.connected || model.enabled ? "已连接" : "未连接 / 不可用");
+    text("settingsDataSource", daily.data_source?.name || daily.data_source || "同花顺结构化数据");
+    const formal = daily.latest_research?.run_id;
+    text("settingsResearchState", formal ? `正式run · ${formal}` : "暂无正式收盘run");
+  } catch (error) {
+    if (!quiet) showToast("设置状态读取失败", error.message, "error", 5000);
+  }
+}
+
+function setPersonalAssistantIntent(intent) {
+  state.personalAssistant.intent = intent;
+  document.querySelectorAll("[data-assistant-intent]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.assistantIntent === intent);
+  });
+  byId("personalAssistantSymbolLabel").classList.toggle(
+    "hidden", !["stock_reason", "portfolio_fit"].includes(intent),
+  );
+}
+
+function renderPersonalAssistantAnswer(payload = {}) {
+  state.personalAssistant.answer = payload;
+  text("personalAssistantHeadline", {
+    daily_attention: "今日关注",
+    portfolio_analysis: "组合风险",
+    stock_reason: "个股关注理由",
+    portfolio_fit: "组合适配说明",
+    behavior_review: "投资行为复盘",
+  }[payload.intent] || "AI投资助手");
+  text("personalAssistantMeta", `${payload.model_used ? "模型解释" : "确定性证据摘要"} · ${time(payload.generated_at)}`);
+  text("personalAssistantState", payload.status || "unavailable");
+  byId("personalAssistantState").className = `badge badge-${payload.status === "published" ? "success" : payload.status === "degraded" ? "warning" : "muted"}`;
+  text("personalAssistantSummary", payload.summary || "暂无结论");
+  text("personalAssistantNextAction", `下一步：${payload.suggested_next_action || "继续观察"}`);
+  const renderList = (containerId, items, empty) => {
+    const node = byId(containerId);
+    node.replaceChildren();
+    (items || []).forEach((item) => {
+      const row = document.createElement("p");
+      row.textContent = item;
+      node.append(row);
+    });
+    if (!node.children.length) {
+      const row = document.createElement("p");
+      row.className = "empty-inline";
+      row.textContent = empty;
+      node.append(row);
+    }
+  };
+  renderList("personalAssistantKeyPoints", payload.key_points, "暂无可展示的关键依据。");
+  renderList("personalAssistantRisks", [...(payload.risks || []), ...(payload.uncertainties || [])], "暂无新增风险；仍不代表确定性预测。");
+  const evidence = byId("personalAssistantEvidenceList");
+  evidence.replaceChildren();
+  (payload.evidence_refs || []).forEach((ref) => {
+    const row = document.createElement("article");
+    row.className = "assistant-evidence-row";
+    row.innerHTML = "<strong></strong><dl></dl>";
+    row.querySelector("strong").textContent = ref.evidence_id;
+    const fields = [["来源", ref.source], ["数据时间", ref.data_time], ["run_id", ref.run_id], ["report_id", ref.report_id], ["策略版本", ref.strategy_version], ["因子版本", ref.factor_version]];
+    fields.forEach(([label, value]) => {
+      const item = document.createElement("div");
+      item.innerHTML = "<dt></dt><dd></dd>";
+      item.querySelector("dt").textContent = label;
+      item.querySelector("dd").textContent = value || "不可用";
+      row.querySelector("dl").append(item);
+    });
+    evidence.append(row);
+  });
+  if (!evidence.children.length) {
+    const row = document.createElement("p");
+    row.className = "empty-inline";
+    row.textContent = "当前没有可回放的正式证据引用。";
+    evidence.append(row);
+  }
+  byId("assistantJournalSavePanel").classList.toggle("hidden", !payload.summary);
+}
+
+async function queryPersonalAssistant() {
+  if (state.personalAssistant.inFlight) return;
+  const intent = state.personalAssistant.intent;
+  const symbol = byId("personalAssistantSymbol").value.trim().toUpperCase() || null;
+  if (["stock_reason", "portfolio_fit"].includes(intent) && !/^\d{6}\.(SH|SZ)$/.test(symbol || "")) {
+    showToast("需要股票代码", "请输入如 600519.SH 的沪深股票代码。", "warning", 4500);
+    return;
+  }
+  state.personalAssistant.inFlight = true;
+  byId("personalAssistantSubmit").disabled = true;
+  text("personalAssistantState", "查询中");
+  try {
+    const answer = await apiRequest("query_personal_ai_assistant", {
+      body: { intent, symbol, question: byId("personalAssistantQuestion").value.trim() || null },
+      timeoutMs: 90000,
+    });
+    renderPersonalAssistantAnswer(answer);
+  } catch (error) {
+    showToast("AI助手查询失败", error.message, "error", 6500);
+  } finally {
+    state.personalAssistant.inFlight = false;
+    byId("personalAssistantSubmit").disabled = false;
+  }
+}
+
+function reviewRecordNode(item, { reviewable = false } = {}) {
+  const row = document.createElement("article");
+  row.className = "review-loop-card";
+  const copy = document.createElement("div");
+  const title = document.createElement("strong");
+  const meta = document.createElement("small");
+  const reason = document.createElement("p");
+  title.textContent = item.title || item.reminder_type || item.thesis_status || "投资记录";
+  meta.textContent = [item.trade_date || item.reviewed_at, item.symbol, item.entry_type || item.status].filter(Boolean).join(" · ");
+  reason.textContent = item.reason || item.message || item.result_summary || item.user_text || "暂无摘要";
+  copy.append(title, meta, reason); row.append(copy);
+  if (reviewable) {
+    const button = document.createElement("button");
+    button.type = "button"; button.className = "button button-primary button-compact";
+    button.dataset.reviewJournalId = item.journal_id; button.textContent = "开始复盘"; row.append(button);
+  }
+  if (item.reminder_id && ["OPEN", "READ"].includes(item.status)) {
+    const actions = document.createElement("div"); actions.className = "review-reminder-actions";
+    [["READ","已读"],["DISMISSED","忽略"],["DONE","完成"]].forEach(([status,label]) => {
+      const button = document.createElement("button"); button.type="button"; button.className="button button-ghost button-compact";
+      button.dataset.reminderId=item.reminder_id; button.dataset.reminderStatus=status; button.textContent=label; actions.append(button);
+    }); row.append(actions);
+  }
+  return row;
+}
+
+function fillReviewList(id, items, empty, options = {}) {
+  const root = byId(id); root.replaceChildren();
+  (items || []).forEach((item) => root.append(reviewRecordNode(item, options)));
+  if (!root.children.length) root.append(personalRecordNode(empty, "当前没有需要处理的记录"));
+}
+
+function renderInvestmentReviewLoop(payload = {}) {
+  state.investmentReview.dashboard = payload;
+  const center = payload.review_center || {};
+  const today = center.today || {}; const recent = center.recent || {}; const counts = center.counts || {};
+  text("reviewPendingCount", counts.pending_reviews ?? 0);
+  text("reviewTodayEntryCount", (today.entries || []).length);
+  text("reviewReminderCount", (today.reminders || []).length);
+  const important = center.most_important || {};
+  text("reviewMostImportant", important.title ? `${important.title}：${important.reason || important.message || "请复核"}` : "今日没有紧急复盘任务。 ");
+  fillReviewList("reviewDueList", today.due_reviews, "暂无到期复盘", { reviewable: true });
+  fillReviewList("reviewDecisionList", recent.decisions, "最近7天暂无决策日志");
+  fillReviewList("reviewCompletedList", recent.reviews, "最近暂无已确认复盘");
+  fillReviewList("reviewLessonList", recent.lessons, "最近暂无已确认经验");
+  fillReviewList("reviewReminderList", today.reminders, "今日暂无站内提醒");
+}
+
+async function loadInvestmentReviewLoop({ quiet = false, sync = false } = {}) {
+  if (state.investmentReview.inFlight) return;
+  state.investmentReview.inFlight = true;
+  try {
+    renderInvestmentReviewLoop(await apiRequest("get_investment_review_loop", {
+      query: { sync_reminders: sync }, timeoutMs: 30000,
+    }));
+  } catch (error) {
+    if (!quiet) showToast("投资复盘同步失败", error.message, "error", 6500);
+  } finally { state.investmentReview.inFlight = false; }
+}
+
+function splitLines(id) {
+  return byId(id).value.split(/\r?\n/).map((item) => item.trim()).filter(Boolean);
+}
+
+async function openJournalReview(journalId) {
+  try {
+    const draft = await apiRequest("get_investment_review_draft", { pathParams: { journal_id: journalId }, timeoutMs: 30000 });
+    state.investmentReview.draft = draft; state.investmentReview.journalId = journalId;
+    const root = byId("journalReviewDraft"); root.replaceChildren();
+    const original = document.createElement("article"); original.innerHTML = "<strong>当时理由</strong><p></p>";
+    original.querySelector("p").textContent = draft.original?.user_text || draft.original?.reason || "未记录"; root.append(original);
+    const facts = document.createElement("article"); facts.innerHTML = "<strong>事实变化</strong><dl></dl>";
+    Object.entries(draft.facts_changed || {}).forEach(([key,value]) => { const row=document.createElement("div"); row.innerHTML="<dt></dt><dd></dd>"; row.querySelector("dt").textContent=key; row.querySelector("dd").textContent=value == null ? "证据不足" : (typeof value === "object" ? JSON.stringify(value) : String(value)); facts.querySelector("dl").append(row); }); root.append(facts);
+    const gaps = document.createElement("article"); gaps.innerHTML="<strong>不确定项</strong><p></p>"; gaps.querySelector("p").textContent=(draft.uncertainties || []).join("；") || "无已知缺口"; root.append(gaps);
+    byId("journalReviewDialog").showModal();
+  } catch (error) { showToast("复盘草稿生成失败", error.message, "error", 6500); }
+}
+
+/**
+ * Render the backend-owned PANGU-V3.2 daily cockpit.
+ * Formatting helpers receive authoritative values and never derive asset, PnL,
+ * exposure, drawdown, factor score or risk decisions in the browser.
+ */
+function renderInvestmentDashboard(payload = {}) {
+  state.investmentDashboard.snapshot = payload;
+  MarketCard(byId("dashboardMarketCard"), payload.market || {});
+  AssetCard(byId("dashboardAssetCard"), payload.asset || {}, { money, percent: fractionPct });
+  RiskCard(byId("dashboardRiskCard"), payload.risk || {});
+  AICard(byId("dashboardAICard"), payload.ai_summary || {});
+  StockCard(byId("dashboardStockCard"), payload.watchlist || []);
+  HoldingHealthCard(byId("dashboardHoldingHealthCard"), payload.holding_health || [], { money, percent: fractionPct });
+  TaskCard(byId("dashboardTaskCard"), payload.tasks || []);
+  const source = payload.research?.source_mode === "formal_close_plan" ? "正式收盘研究" : "盘中预览 / 无正式计划";
+  const stateNode = byId("investmentDashboardState");
+  stateNode.className = `badge badge-${payload.research?.used_for_execution ? "success" : "warning"}`;
+  stateNode.textContent = `已同步 · ${source} · ${time(payload.created_at)}`;
+  text("investmentDashboardSnapshot", payload.snapshot_id || "—");
+  text("investmentDashboardRun", payload.research?.run_id || "run_id不可用");
+  text("investmentDashboardGaps", (payload.data_gaps || []).length ? `${payload.data_gaps.length}项 · ${payload.data_gaps[0]}` : "无已知证据缺口");
+}
+
+async function loadInvestmentDashboard({ quiet = false } = {}) {
+  if (state.investmentDashboard.inFlight) return;
+  state.investmentDashboard.inFlight = true;
+  const button = byId("investmentDashboardRefreshButton");
+  button.disabled = true;
+  try {
+    renderInvestmentDashboard(await apiRequest("get_investment_dashboard_overview", { timeoutMs: 30000 }));
+  } catch (error) {
+    text("investmentDashboardState", "驾驶舱同步失败");
+    if (!quiet) showToast("投资驾驶舱同步失败", error.message, "error", 6500);
+  } finally {
+    state.investmentDashboard.inFlight = false;
+    button.disabled = false;
   }
 }
 
@@ -2124,6 +2551,263 @@ async function openEvolutionReport(reportId) {
   }
 }
 
+const ENGINEERING_COMPONENT_LABELS = {
+  data: "数据资产",
+  database: "数据库",
+  ai: "AI 服务",
+  strategy: "策略合同",
+};
+
+function engineeringTone(status) {
+  if (status === "HEALTHY" || status === "SUCCEEDED") return "success";
+  if (status === "DEGRADED" || status === "RUNNING") return "warning";
+  if (status === "UNHEALTHY" || status === "FAILED") return "danger";
+  return "muted";
+}
+
+function renderEngineeringComponents(components = {}) {
+  const container = byId("engineeringComponentGrid");
+  container.replaceChildren();
+  const entries = Object.entries(components);
+  byId("engineeringComponentEmpty").classList.toggle("hidden", entries.length > 0);
+  entries.forEach(([key, component]) => {
+    const card = document.createElement("article");
+    card.className = "engineering-component-card";
+    const header = document.createElement("header");
+    const copy = document.createElement("div");
+    const title = document.createElement("span");
+    const score = document.createElement("strong");
+    const status = badge(component.status || "UNKNOWN", engineeringTone(component.status));
+    title.textContent = ENGINEERING_COMPONENT_LABELS[key] || key;
+    score.textContent = component.score == null ? "—" : `${component.score} / 100`;
+    copy.append(title, score);
+    header.append(copy, status);
+    const meter = document.createElement("meter");
+    meter.min = "0";
+    meter.max = "100";
+    meter.value = String(component.score ?? 0);
+    const message = document.createElement("p");
+    message.textContent = component.message || "无说明";
+    const gaps = document.createElement("small");
+    gaps.textContent = component.data_gaps?.length ? `数据缺口：${component.data_gaps.join("、")}` : "证据完整性未发现额外缺口";
+    card.append(header, meter, message, gaps);
+    container.append(card);
+  });
+}
+
+function renderEngineeringBackups(items = []) {
+  const container = byId("engineeringBackupList");
+  container.replaceChildren();
+  byId("engineeringBackupEmpty").classList.toggle("hidden", items.length > 0);
+  items.forEach((item) => {
+    const card = document.createElement("article");
+    const header = document.createElement("header");
+    const title = document.createElement("strong");
+    title.textContent = item.backup_id || "未命名备份";
+    header.append(title, badge(item.status || "UNKNOWN", engineeringTone(item.status)));
+    const path = document.createElement("code");
+    path.textContent = item.backup_path || "—";
+    const meta = document.createElement("small");
+    meta.textContent = `${time(item.completed_at || item.started_at)} · ${item.file_count || 0} 个文件 · ${item.byte_count || 0} bytes`;
+    const hash = document.createElement("small");
+    hash.textContent = item.manifest_hash ? `manifest ${item.manifest_hash.slice(0, 16)}…` : (item.error_message || "等待清单");
+    card.append(header, path, meta, hash);
+    container.append(card);
+  });
+}
+
+function renderEngineeringEvents(items = []) {
+  const container = byId("engineeringEventList");
+  container.replaceChildren();
+  byId("engineeringEventEmpty").classList.toggle("hidden", items.length > 0);
+  items.forEach((item) => {
+    const card = document.createElement("article");
+    const header = document.createElement("header");
+    const title = document.createElement("strong");
+    title.textContent = `${item.module || "unknown"} · ${item.event || "event"}`;
+    header.append(title, badge(item.level || "INFO", item.level === "ERROR" || item.level === "CRITICAL" ? "danger" : item.level === "WARNING" ? "warning" : "muted"));
+    const message = document.createElement("p");
+    message.textContent = item.message || "";
+    const meta = document.createElement("small");
+    meta.textContent = `${time(item.timestamp)} · trace ${String(item.trace_id || "—").slice(0, 12)}`;
+    card.append(header, message, meta);
+    container.append(card);
+  });
+}
+
+function renderEngineeringCenter(payload = {}) {
+  state.engineering.dashboard = payload;
+  const health = payload.health || {};
+  const versions = payload.versions || {};
+  const config = payload.configuration || {};
+  const strategyVersions = versions.strategy_versions || {};
+  const factorVersions = versions.factor_versions || {};
+  text("engineeringScore", health.score == null ? "—" : String(health.score));
+  text("engineeringCheckedAt", health.checked_at ? `检查于 ${time(health.checked_at)}` : "等待首次检查");
+  text("engineeringState", health.status || "NOT_EVALUATED");
+  byId("engineeringState").className = `badge badge-${engineeringTone(health.status)}`;
+  text("engineeringSystemVersion", versions.system_version || "—");
+  text("engineeringVersionHash", versions.manifest_hash ? `清单 ${versions.manifest_hash.slice(0, 16)}…` : "版本清单未加载");
+  text("engineeringStrategyVersion", strategyVersions.production || "—");
+  text("engineeringFactorVersion", `因子 ${factorVersions.production || "—"}`);
+  text("engineeringEnvironment", config.environment || "—");
+  text("engineeringConfigHash", config.config_hash ? `配置 ${config.config_hash.slice(0, 16)}…` : "—");
+  text("engineeringBackupCount", payload.counts?.successful_backup_count ?? 0);
+  renderEngineeringComponents(health.components || {});
+  renderEngineeringBackups(payload.backups || []);
+  renderEngineeringEvents(payload.events || []);
+}
+
+async function loadEngineeringCenter({ quiet = false } = {}) {
+  if (state.engineering.inFlight) return;
+  state.engineering.inFlight = true;
+  try {
+    renderEngineeringCenter(await apiRequest("get_engineering_dashboard", { timeoutMs: 20000 }));
+  } catch (error) {
+    if (!quiet) showToast("工程健康读取失败", error.message, "error", 6500);
+  } finally {
+    state.engineering.inFlight = false;
+  }
+}
+
+async function runEngineeringAction(operation, button, workingMessage, successMessage) {
+  if (state.engineering.actionInFlight) return;
+  state.engineering.actionInFlight = true;
+  button.disabled = true;
+  showToast("工程任务已启动", workingMessage, "info", 3200);
+  try {
+    await apiRequest(operation, { body: {}, timeoutMs: operation === "create_engineering_backup" ? 180000 : 45000 });
+    await loadEngineeringCenter();
+    showToast("工程任务完成", successMessage, "success", 4800);
+  } catch (error) {
+    showToast("工程任务失败", error.message, "error", 7000);
+  } finally {
+    state.engineering.actionInFlight = false;
+    button.disabled = false;
+  }
+}
+
+function observabilityTone(status) {
+  if (["HEALTHY", "OBSERVING", "SUCCEEDED", "OK", "RESOLVED", "NOT_APPLICABLE"].includes(status)) return "success";
+  if (["AT_RISK", "ALERTING", "WARNING", "RUNNING", "ACKNOWLEDGED", "INSUFFICIENT_DATA"].includes(status)) return "warning";
+  if (["BREACHED", "CRITICAL", "ERROR", "FAILED", "STALE", "BLOCKED", "OPEN"].includes(status)) return "danger";
+  return "muted";
+}
+
+function renderObservationList(id, emptyId, items, builder) {
+  const container = byId(id);
+  container.replaceChildren();
+  byId(emptyId).classList.toggle("hidden", items.length > 0);
+  items.forEach((item) => container.append(builder(item)));
+}
+
+function observationCard(titleText, status, message, meta) {
+  const card = document.createElement("article");
+  const header = document.createElement("header");
+  const title = document.createElement("strong");
+  title.textContent = titleText;
+  header.append(title, badge(status || "UNKNOWN", observabilityTone(status)));
+  const copy = document.createElement("p");
+  copy.textContent = message || "";
+  const small = document.createElement("small");
+  small.textContent = meta || "";
+  card.append(header, copy, small);
+  return card;
+}
+
+function renderObservabilityCenter(payload = {}) {
+  state.observability.dashboard = payload;
+  text("observabilityState", payload.status || "等待观测");
+  byId("observabilityState").className = `badge badge-${observabilityTone(payload.status)}`;
+  text("observabilityAlertCount", payload.counts?.active_alert_count ?? 0);
+  const slos = payload.slos || [];
+  const breached = slos.filter((item) => item.status === "BREACHED").length;
+  const available = slos.filter((item) => !["INSUFFICIENT_DATA", "NOT_APPLICABLE"].includes(item.status)).length;
+  text("observabilitySloState", breached ? `${breached}项突破` : available ? "无突破" : "证据不足");
+  text("observabilitySloCoverage", `${available}/${slos.length} 项有可判定证据`);
+  const jobs = payload.jobs || [];
+  text("observabilityJobState", jobs[0]?.status || "—");
+  text("observabilityJobTime", jobs[0] ? `${jobs[0].job_type} · ${time(jobs[0].completed_at || jobs[0].started_at)}` : "尚无作业");
+  const latency = (payload.metrics || []).find((item) => item.metric_name === "api.request.duration");
+  text("observabilityApiP95", latency?.p95 == null ? "—" : `${Number(latency.p95).toFixed(1)} ms`);
+  text("observabilityTraceCount", payload.counts?.trace_count ?? 0);
+
+  const alerts = (payload.alerts || []).filter((item) => ["OPEN", "ACKNOWLEDGED"].includes(item.status));
+  renderObservationList("observabilityAlertList", "observabilityAlertEmpty", alerts, (item) => {
+    const card = observationCard(item.message || item.rule_id, item.severity, item.recommended_manual_action, `${item.status} · ${time(item.last_seen_at)}`);
+    if (item.status === "OPEN") {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "button button-ghost button-compact";
+      button.dataset.observabilityAck = item.alert_id;
+      button.textContent = "确认已查看";
+      card.append(button);
+    }
+    return card;
+  });
+  renderObservationList("observabilitySloList", "observabilitySloEmpty", slos, (item) => observationCard(
+    item.name || item.slo_id, item.status,
+    item.actual == null ? "证据不足，未判定达标" : `实际 ${Number(item.actual).toFixed(4)} · 目标 ${item.target}`,
+    `样本 ${item.sample_count || 0} · 窗口 ${item.window || "—"}秒`,
+  ));
+  renderObservationList("observabilityJobList", "observabilityJobEmpty", jobs.slice(0, 20), (item) => observationCard(
+    item.job_type || item.job_id, item.status, item.error_message || `关联 ${item.linked_run_id || item.trace_id || "无"}`,
+    `${time(item.started_at || item.scheduled_for)} · ${String(item.job_id).slice(0, 20)}`,
+  ));
+  renderObservationList("observabilityMetricList", "observabilityMetricEmpty", payload.metrics || [], (item) => observationCard(
+    item.metric_name, item.count ? "OK" : "INSUFFICIENT_DATA",
+    item.count ? `p50 ${Number(item.p50 ?? 0).toFixed(2)} · p95 ${Number(item.p95 ?? 0).toFixed(2)} · p99 ${Number(item.p99 ?? 0).toFixed(2)}` : "暂无样本",
+    `${item.count || 0} 个样本 · ${item.unit || "—"}`,
+  ));
+  renderObservationList("observabilityTraceList", "observabilityTraceEmpty", payload.traces || [], (item) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "observability-trace-card";
+    button.dataset.observabilityTrace = item.trace_id;
+    const title = document.createElement("strong");
+    title.textContent = item.root_operation;
+    const meta = document.createElement("small");
+    meta.textContent = `${item.status} · ${Number(item.duration_ms || 0).toFixed(1)} ms · ${item.trace_id}`;
+    button.append(title, meta);
+    return button;
+  });
+  renderObservationList("observabilityIncidentList", "observabilityIncidentEmpty", payload.incidents || [], (item) => observationCard(
+    item.title, item.status, item.impact || "无影响说明", `${item.severity} · v${item.version} · ${time(item.updated_at)}`,
+  ));
+  renderObservationList("observabilityRetentionList", "observabilityRetentionEmpty", payload.retention || [], (item) => observationCard(
+    item.retention_id, item.status, `计划 ${item.plan_hash?.slice(0, 16) || "—"}…`, time(item.executed_at || item.planned_at),
+  ));
+}
+
+async function loadObservabilityCenter({ quiet = false } = {}) {
+  if (state.observability.inFlight) return;
+  state.observability.inFlight = true;
+  try {
+    const hours = Number(byId("observabilityTimeRange").value || 24);
+    renderObservabilityCenter(await apiRequest("get_observability_dashboard", { query: { hours }, timeoutMs: 30000 }));
+  } catch (error) {
+    if (!quiet) showToast("可观测中心读取失败", error.message, "error", 6500);
+  } finally {
+    state.observability.inFlight = false;
+  }
+}
+
+async function runObservabilityOperation(operation, options = {}, message = "可观测证据已更新") {
+  if (state.observability.actionInFlight) return;
+  state.observability.actionInFlight = true;
+  try {
+    const result = await apiRequest(operation, { ...options, timeoutMs: 45000 });
+    await loadObservabilityCenter();
+    showToast("可观测任务完成", message, "success");
+    return result;
+  } catch (error) {
+    showToast("可观测任务失败", error.message, "error", 6500);
+    return null;
+  } finally {
+    state.observability.actionInFlight = false;
+  }
+}
+
 async function runPersonalAction(operation, options, successMessage) {
   try {
     await apiRequest(operation, { ...options, timeoutMs: 45000 });
@@ -2138,14 +2822,46 @@ function personalToday() {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai" }).format(new Date());
 }
 
+function openReviewQuickForm({ entryType = "OBSERVE", symbol = "", title = "", reason = "" } = {}) {
+  activateWorkspace("review");
+  byId("reviewQuickType").value = entryType;
+  byId("reviewQuickSymbol").value = symbol;
+  byId("reviewQuickTitle").value = title;
+  byId("reviewQuickReason").value = reason;
+  byId("reviewQuickReason").focus();
+}
+
+function journalCreateBody({ entryType, symbol, title, reason, cycle = "NONE", customDate = null, source = "USER", aiSummary = null, evidenceRefs = [] }) {
+  const evidenceIds = (evidenceRefs || []).map((item) => item?.evidence_id).filter(Boolean);
+  const relatedRun = (evidenceRefs || []).find((item) => item?.run_id)?.run_id || null;
+  return {
+    idempotency_key: crypto.randomUUID(),
+    entry_type: entryType,
+    trade_date: personalToday(),
+    symbol: symbol || null,
+    title,
+    reason,
+    user_text: reason,
+    ai_summary: aiSummary,
+    related_run_id: relatedRun,
+    review_cycle: cycle,
+    custom_review_date: cycle === "CUSTOM" ? customDate : null,
+    source,
+    evidence_ids: evidenceIds,
+  };
+}
+
+// A paper-ledger mutation fans out to every account-facing authority. These
+// are independent generated-client reads; one slow module cannot block the
+// others and no browser-side asset calculation is introduced.
+async function refreshAccountAuthorities(source = "account") {
+  const jobs = ["daily", "review", "operating", "dashboard", "personal", "reviewloop"];
+  return Promise.all(jobs.map((jobKey) => syncModuleJob(jobKey, { source, quiet: true })));
+}
+
 async function refreshAll({ source = "manual" } = {}) {
   renderLiveSyncCenter();
-  const results = await Promise.all(["system", "daily", "review", "operating", "data", "evolution"].map((jobKey) => syncModuleJob(jobKey, { source, quiet: source === "auto" })));
-  if (state.activeWorkspace === "assistant") await loadCopilotWorkspace({ quiet: source === "auto" });
-  if (state.activeWorkspace === "quantai") await loadAIResearchCenter({ quiet: source === "auto" });
-  if (state.activeWorkspace === "personalos") await loadPersonalInvestmentOS({ quiet: source === "auto" });
-  if (state.activeWorkspace === "dataintel") await loadDataIntelligence({ quiet: source === "auto" });
-  if (state.activeWorkspace === "evolution") await loadStrategyEvolution({ quiet: source === "auto" });
+  const results = await Promise.all(CORE_SYNC_JOBS.map((jobKey) => syncModuleJob(jobKey, { source, quiet: source === "auto" })));
   const errors = results.filter((result) => !result.ok && !result.skipped).map((result) => `${LIVE_MODULE_LABELS[SYNC_JOB_CONFIG[result.jobKey].moduleKeys[0]]}：${result.error?.message || "同步失败"}`);
   if (errors.length) showError(errors.join("；")); else clearError();
   renderLiveSyncCenter();
@@ -2253,9 +2969,9 @@ function setLiveSyncEnabled(enabled) {
 
 function changeLiveSyncInterval(seconds) {
   state.liveSyncIntervalSeconds = Math.max(10, Math.min(60, Number(seconds) || 15));
-  ["system", "daily", "review", "operating", "data"].forEach((key) => { state.syncJobs[key].nextAt = Date.now() + syncJobIntervalMs(key); });
+  CORE_SYNC_JOBS.forEach((key) => { state.syncJobs[key].nextAt = Date.now() + syncJobIntervalMs(key); });
   startLiveSync();
-  showToast("同步频率已更新", `系统、研究、账户、复盘、投资运营与数据健康每${state.liveSyncIntervalSeconds}秒同步。`, "success", 2600);
+  showToast("同步频率已更新", `${CORE_SYNC_JOBS.length}个模块通道每${state.liveSyncIntervalSeconds}秒独立同步。`, "success", 2600);
 }
 
 function changeCandidateAutoRefresh(enabled, seconds = state.candidateAutoIntervalSeconds) {
@@ -3660,6 +4376,56 @@ byId("evolutionReportList").addEventListener("click", (event) => {
   const button = event.target.closest("[data-evolution-report]");
   if (button) void openEvolutionReport(button.dataset.evolutionReport);
 });
+byId("engineeringRefreshButton").addEventListener("click", () => loadEngineeringCenter());
+byId("engineeringHealthButton").addEventListener("click", (event) => runEngineeringAction(
+  "run_engineering_health",
+  event.currentTarget,
+  "正在只读检查数据、数据库、AI 与策略合同。",
+  "工程健康快照已保存；未修改任何投资状态。",
+));
+byId("engineeringBackupButton").addEventListener("click", (event) => runEngineeringAction(
+  "create_engineering_backup",
+  event.currentTarget,
+  "正在复制本地证据并生成 SHA-256 清单。",
+  "本地备份已完成并校验；源证据未被覆盖。",
+));
+byId("observabilityRefreshButton").addEventListener("click", () => loadObservabilityCenter());
+byId("observabilityTimeRange").addEventListener("change", () => loadObservabilityCenter());
+byId("observabilityEvaluateButton").addEventListener("click", () => runObservabilityOperation(
+  "evaluate_observability", { body: {} }, "已有工程证据已采样，SLO与告警已重新评估；未执行自动修复。",
+));
+byId("observabilityRetentionPlanButton").addEventListener("click", () => runObservabilityOperation(
+  "plan_observability_retention", { body: {} }, "Retention计划已保存；尚未删除任何数据。",
+));
+byId("observabilityAlertList").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-observability-ack]");
+  if (button) void runObservabilityOperation(
+    "acknowledge_observability_alert",
+    { pathParams: { alert_id: button.dataset.observabilityAck }, body: { actor: "local-dashboard", note: "用户已在可观测中心确认查看" } },
+    "告警已标记为已查看；根因和工程状态未改变。",
+  );
+});
+byId("observabilityTraceList").addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-observability-trace]");
+  if (!button) return;
+  try {
+    const trace = await apiRequest("get_observability_trace", { pathParams: { trace_id: button.dataset.observabilityTrace } });
+    showToast("Trace链路", `${trace.root_operation} · ${trace.spans?.length || 0}个Span · ${trace.status}`, observabilityTone(trace.status), 7000);
+  } catch (error) {
+    showToast("Trace读取失败", error.message, "error", 6500);
+  }
+});
+byId("observabilityTraceQuery").addEventListener("change", async (event) => {
+  const query = event.target.value.trim();
+  if (!query) return loadObservabilityCenter();
+  try {
+    const payload = await apiRequest("list_observability_traces", { query: { query, limit: 100 } });
+    const dashboard = { ...(state.observability.dashboard || {}), traces: payload.items || [] };
+    renderObservabilityCenter(dashboard);
+  } catch (error) {
+    showToast("Trace检索失败", error.message, "error", 6500);
+  }
+});
 
 document.querySelectorAll(".paper-tab").forEach((button) => button.addEventListener("click", () => {
   document.querySelectorAll(".paper-tab").forEach((item) => item.classList.remove("active"));
@@ -3673,6 +4439,7 @@ document.querySelectorAll(".etf-tab").forEach((button) => button.addEventListene
 }));
 
 byId("personalOsRefreshButton").addEventListener("click", () => loadPersonalInvestmentOS());
+byId("investmentDashboardRefreshButton").addEventListener("click", () => loadInvestmentDashboard());
 byId("personalScoreRefreshButton").addEventListener("click", () => runPersonalAction(
   "refresh_personal_investment_score", { body: {} }, "投资流程评分已按固定权重更新。",
 ));
@@ -3724,7 +4491,10 @@ byId("personalJournalForm").addEventListener("submit", (event) => {
     entry_type: byId("personalJournalType").value,
     trade_date: personalToday(), symbol,
     title: byId("personalJournalTitle").value.trim(),
-    content: byId("personalJournalContent").value.trim(),
+    reason: byId("personalJournalContent").value.trim(),
+    user_text: byId("personalJournalContent").value.trim(),
+    review_cycle: "NONE",
+    source: "USER",
     evidence_ids: [],
   } }, "投资日志已保存，不会成为交易信号。 ");
   event.currentTarget.reset();
@@ -3743,9 +4513,141 @@ byId("personalKnowledgeForm").addEventListener("submit", (event) => {
   event.currentTarget.reset();
 });
 
-installPersonalWorkspaceTab();
-document.querySelectorAll(".workspace-tab, .workspace-link").forEach((button) => {
+document.querySelectorAll(".workspace-tab, .workspace-link, [data-open-workspace]").forEach((button) => {
   button.addEventListener("click", () => activateWorkspace(button.dataset.workspace || button.dataset.openWorkspace));
+});
+
+document.querySelectorAll("[data-assistant-intent]").forEach((button) => {
+  button.addEventListener("click", () => setPersonalAssistantIntent(button.dataset.assistantIntent));
+});
+byId("personalAssistantForm").addEventListener("submit", (event) => {
+  event.preventDefault();
+  void queryPersonalAssistant();
+});
+
+byId("reviewQuickCycle").addEventListener("change", (event) => {
+  byId("reviewQuickCustomDate").classList.toggle("hidden", event.target.value !== "CUSTOM");
+});
+
+byId("reviewQuickJournalForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const symbol = byId("reviewQuickSymbol").value.trim().toUpperCase();
+  const cycle = byId("reviewQuickCycle").value;
+  if (symbol && !validSymbol(symbol)) {
+    showToast("股票代码格式不正确", "请输入如 600519.SH 的沪深股票代码。", "warning", 4500);
+    return;
+  }
+  if (cycle === "CUSTOM" && !byId("reviewQuickCustomDate").value) {
+    showToast("请选择复盘日期", "自定义周期必须提供日期。", "warning", 4500);
+    return;
+  }
+  try {
+    await apiRequest("create_investment_review_journal", { body: journalCreateBody({
+      entryType: byId("reviewQuickType").value,
+      symbol,
+      title: byId("reviewQuickTitle").value.trim(),
+      reason: byId("reviewQuickReason").value.trim(),
+      cycle,
+      customDate: byId("reviewQuickCustomDate").value || null,
+    }) });
+    event.currentTarget.reset();
+    byId("reviewQuickCustomDate").classList.add("hidden");
+    await loadInvestmentReviewLoop({ sync: true });
+    showToast("投资日志已保存", "你的原话与复盘日期已分开保存；没有触发AI或交易。", "success");
+  } catch (error) { showToast("日志保存失败", error.message, "error", 6500); }
+});
+
+byId("reviewReminderSyncButton").addEventListener("click", async () => {
+  try {
+    await apiRequest("sync_investment_review_reminders", { body: {} });
+    await loadInvestmentReviewLoop();
+    showToast("提醒已刷新", "只比较已保存快照，没有运行研究、AI或订单。", "success");
+  } catch (error) { showToast("提醒刷新失败", error.message, "error", 6500); }
+});
+
+byId("workspace-review").addEventListener("click", async (event) => {
+  const reviewButton = event.target.closest("[data-review-journal-id]");
+  if (reviewButton) { await openJournalReview(reviewButton.dataset.reviewJournalId); return; }
+  const reminderButton = event.target.closest("[data-reminder-id]");
+  if (!reminderButton) return;
+  try {
+    await apiRequest("update_investment_review_reminder_status", {
+      pathParams: { reminder_id: reminderButton.dataset.reminderId },
+      body: { status: reminderButton.dataset.reminderStatus },
+    });
+    await loadInvestmentReviewLoop();
+  } catch (error) { showToast("提醒状态更新失败", error.message, "error", 6500); }
+});
+
+byId("journalReviewDialogClose").addEventListener("click", () => byId("journalReviewDialog").close());
+byId("journalReviewForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const draft = state.investmentReview.draft;
+  if (!draft || !state.investmentReview.journalId) return;
+  try {
+    const result = await apiRequest("confirm_investment_review", {
+      pathParams: { journal_id: state.investmentReview.journalId },
+      body: {
+        idempotency_key: crypto.randomUUID(),
+        reviewed_at: new Date().toISOString(),
+        facts_changed: Object.keys(draft.facts_changed || {}),
+        thesis_status: byId("journalReviewThesis").value,
+        risk_status: byId("journalReviewRisk").value.trim(),
+        result_summary: byId("journalReviewResult").value.trim(),
+        mistakes: splitLines("journalReviewMistakes"),
+        good_decisions: splitLines("journalReviewGood"),
+        lesson_candidate: byId("journalReviewLesson").value.trim() || null,
+        evidence_refs: draft.evidence_refs || [],
+        draft,
+        user_confirmed: true,
+      },
+      timeoutMs: 45000,
+    });
+    byId("journalReviewDialog").close();
+    event.currentTarget.reset();
+    await loadInvestmentReviewLoop({ sync: true });
+    showToast("复盘已确认", result.lesson ? "REVIEW与一条用户确认的LESSON已保存。" : "REVIEW已保存；未自动生成经验。", "success");
+  } catch (error) { showToast("复盘保存失败", error.message, "error", 6500); }
+});
+
+byId("assistantJournalSaveForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const answer = state.personalAssistant.answer;
+  if (!answer?.summary) return;
+  const symbol = byId("personalAssistantSymbol").value.trim().toUpperCase();
+  const userText = byId("assistantJournalUserText").value.trim();
+  try {
+    await apiRequest("create_investment_review_journal", { body: journalCreateBody({
+      entryType: byId("assistantJournalType").value,
+      symbol: validSymbol(symbol) ? symbol : "",
+      title: `${byId("personalAssistantHeadline").textContent} · 用户确认`,
+      reason: userText,
+      cycle: byId("assistantJournalCycle").value,
+      source: "AI_SAVED",
+      aiSummary: answer.summary,
+      evidenceRefs: answer.evidence_refs || [],
+    }) });
+    event.currentTarget.reset();
+    showToast("AI结果已保存为日志", "你的原话与AI摘要分别保存；不是自动决策。", "success");
+  } catch (error) { showToast("AI日志保存失败", error.message, "error", 6500); }
+});
+
+document.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-journal-action]");
+  if (!button) return;
+  openReviewQuickForm({
+    entryType: button.dataset.journalAction,
+    symbol: button.dataset.journalSymbol,
+    title: button.dataset.journalTitle,
+    reason: button.dataset.journalReason,
+  });
+});
+byId("settingsTestModelButton").addEventListener("click", () => runAction(
+  "test_model_connection", { body: {} }, 45000,
+  { buttonId: "settingsTestModelButton", busyLabel: "测试中…", overlay: false, successTitle: "DeepSeek连接正常", successMessage: "模型保持只读且无交易权限。" },
+));
+byId("settingsShowAISummary").addEventListener("change", (event) => {
+  byId("dashboardAICard").classList.toggle("hidden", !event.target.checked);
 });
 
 window.addEventListener("hashchange", () => {
@@ -3805,7 +4707,7 @@ window.addEventListener("beforeunload", () => {
   stopBrokerMatching();
 });
 
-activateWorkspace(location.hash.slice(1) || "personalos", { updateHash: false, scroll: false });
+activateWorkspace(location.hash.slice(1) || "dashboard", { updateHash: false, scroll: false });
 changeCandidateAutoRefresh(true, 300);
 startLiveSync();
 void refreshAll({ source: "initial" });

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from datetime import datetime
 import ipaddress
 import os
 from pathlib import Path
@@ -14,6 +15,11 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.staticfiles import StaticFiles
 import yaml
 
+from pangu.core.exceptions import AuditStoreError, BackupError, ConfigurationError
+from pangu.engineering import EngineeringService
+from pangu.observability.service import ObservabilityService
+from pangu.version.system_version import API_VERSION, SYSTEM_VERSION
+
 from ..ai_copilot.copilot_service import CopilotGroundingError, CopilotService
 from ..ai_copilot.evidence_reader import EvidenceReaderError
 from ..ai_copilot.memory_store import CopilotStoreError
@@ -22,6 +28,8 @@ from ..model_settings import ModelSettingsError
 from ..repositories.run_repository import RunRepository
 from ..scheduler.job_manager import JobManager
 from ..services.dashboard_service import DashboardService
+from ..services.investment_dashboard_service import InvestmentDashboardService
+from ..services.personal_ai_assistant_service import PersonalAIAssistantService
 from ..services.daily_investment_os_service import DailyInvestmentOSService
 from ..services.daily_research_service import DailyResearchService
 from ..services.investment_report_center import InvestmentReportCenterError
@@ -59,10 +67,23 @@ from .schemas import (
     DataHealthResponse,
     DataIncidentResponse,
     DataIntelligenceDashboardResponse,
+    EngineeringBackupResponse,
+    EngineeringDashboardResponse,
+    EngineeringHealthResponse,
+    EngineeringItemsResponse,
+    ObservabilityAcknowledgeRequest,
+    ObservabilityDashboardResponse,
+    ObservabilityIncidentCreateRequest,
+    ObservabilityIncidentStatusRequest,
+    ObservabilityItemsResponse,
+    ObservabilityRetentionRunRequest,
+    ObservabilityTraceResponse,
     PersonalArchiveRequest,
     PersonalInvestmentEventRequest,
     PersonalJournalCreateRequest,
     PersonalJournalUpdateRequest,
+    InvestmentReviewConfirmRequest,
+    InvestmentReminderStatusRequest,
     PersonalKnowledgeCreateRequest,
     PersonalOSDashboardResponse,
     PersonalReportRequest,
@@ -96,6 +117,9 @@ from .schemas import (
     InvestmentNotificationResponse,
     InvestmentOperatingReportResponse,
     InvestmentOSDashboardResponse,
+    InvestmentDashboardOverviewResponse,
+    PersonalAssistantQueryRequest,
+    PersonalAssistantQueryResponse,
     MobileAuthStatusResponse,
     MobileCopilotChatRequest,
     MobileCopilotChatResponse,
@@ -197,6 +221,10 @@ def create_app(
     personal_os_service: PersonalInvestmentOSService | None = None,
     data_intelligence_service: DataIntelligenceService | None = None,
     strategy_evolution_service: StrategyEvolutionService | None = None,
+    engineering_service: EngineeringService | None = None,
+    observability_service: ObservabilityService | None = None,
+    investment_dashboard_service: InvestmentDashboardService | None = None,
+    personal_ai_assistant_service: PersonalAIAssistantService | None = None,
     port: int = 8765,
 ) -> FastAPI:
     """Create the local-only API and static dashboard application."""
@@ -221,6 +249,7 @@ def create_app(
             daily.paper_lock,
             getattr(daily, "review_valuation", None),
             getattr(daily, "valuation_service", None),
+            ((lambda: daily._now().date()) if callable(getattr(daily, "_now", None)) else None),
         )
     else:
         # Lightweight API stubs may not expose the persistent paper ledger.
@@ -233,6 +262,7 @@ def create_app(
             review_daily.paper_lock,
             review_daily.review_valuation,
             review_daily.valuation_service,
+            lambda: review_daily._now().date(),
         )
     investment_os = investment_os_service or DailyInvestmentOSService(
         root,
@@ -246,11 +276,18 @@ def create_app(
         if callable(calendar_reader)
         else None
     )
+    engineering = engineering_service or EngineeringService(
+        root,
+        model_status_provider=models.status,
+    )
+    observability = observability_service or engineering.observability
     investment_jobs = investment_job_manager or JobManager(
         investment_os,
         trading_day_provider=trading_day_provider,
+        observability_jobs=observability.jobs,
     )
     mobile_config: dict = {}
+    raw_settings: dict = {}
     settings_path = root / "config" / "settings.yaml"
     if settings_path.is_file():
         try:
@@ -289,7 +326,21 @@ def create_app(
         investment_os_service=investment_os,
         quant_ai_service=quant_ai,
         strategy_validation_service=strategy_validation,
+        daily_research_service=daily,
         production_profile=production_profile_payload,
+        review_config=(raw_settings.get("investment_review_loop") if settings_path.is_file() else None),
+    )
+    investment_dashboard = investment_dashboard_service or InvestmentDashboardService(
+        workbench_service=workbench,
+        daily_research_service=daily,
+        investment_os_service=investment_os,
+        personal_os_service=personal_os,
+        copilot_service=copilot,
+    )
+    personal_ai_assistant = personal_ai_assistant_service or PersonalAIAssistantService(
+        investment_dashboard_service=investment_dashboard,
+        copilot_service=copilot,
+        personal_os_service=personal_os,
     )
     data_intelligence = data_intelligence_service or getattr(
         getattr(daily, "research", None), "data_intelligence", None
@@ -298,7 +349,6 @@ def create_app(
         root,
         strategy_validation_service=strategy_validation,
     )
-
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         """Retain services for the app lifetime and release the worker on exit."""
@@ -316,7 +366,7 @@ def create_app(
 
     app = FastAPI(
         title="盘古·天机 API",
-        version="1.0.0",
+        version=API_VERSION,
         description="使用同花顺点时数据进行七维横截面研究、生产同构回测准备与本机MockBroker模拟成交。无实盘或券商下单接口。",
         lifespan=lifespan,
     )
@@ -336,8 +386,12 @@ def create_app(
     app.state.strategy_validation_service = strategy_validation
     app.state.quant_ai_service = quant_ai
     app.state.personal_os_service = personal_os
+    app.state.investment_dashboard_service = investment_dashboard
+    app.state.personal_ai_assistant_service = personal_ai_assistant
     app.state.data_intelligence_service = data_intelligence
     app.state.strategy_evolution_service = strategy_evolution
+    app.state.engineering_service = engineering
+    app.state.observability_service = observability
     app.add_middleware(
         TrustedHostMiddleware,
         allowed_hosts=(
@@ -352,7 +406,7 @@ def create_app(
         ],
         allow_credentials=False,
         allow_methods=["GET", "POST"],
-        allow_headers=["Authorization", "Content-Type", "X-Ashare-Client"],
+        allow_headers=["Authorization", "Content-Type", "X-Ashare-Client", "X-Request-Id", "X-Trace-Id"],
     )
 
     @app.middleware("http")
@@ -361,6 +415,41 @@ def create_app(
         client_host = request.client.host if request.client else None
         loopback = _is_loopback_address(client_host)
         path = request.url.path
+        account_mutation = request.method in {"POST", "PUT", "PATCH", "DELETE"} and (
+            path.startswith("/api/v1/paper/")
+            or path in {
+                "/api/v1/daily-research/execute",
+                "/api/v1/daily-research/monitor",
+                "/api/v1/safety/kill-switch",
+            }
+        )
+        observed = path.startswith("/api/") and not path.startswith("/api/mobile/v1/")
+        try:
+            observation = observability.begin_request(
+                request_id=request.headers.get("x-request-id"),
+                trace_id=request.headers.get("x-trace-id"),
+            ) if observed else None
+        except (AuditStoreError, ValueError, OSError):
+            # Product availability never depends on the best-effort telemetry store.
+            observation = None
+
+        def finish_observation(response: Response, *, blocked: bool = False, error_code: str | None = None) -> Response:
+            """Finish bounded request telemetry without changing the API result."""
+            if observation is None:
+                return response
+            route = request.scope.get("route")
+            operation_id = str(getattr(route, "operation_id", None) or error_code or "api.middleware")
+            try:
+                observability.finish_request(
+                    observation[0], observation[1], operation_id=operation_id,
+                    method=request.method, status_code=response.status_code,
+                    blocked=blocked, error_code=error_code,
+                )
+            except (AuditStoreError, ValueError, OSError):
+                # Telemetry is fail-open for product reads/writes and cannot own business availability.
+                return response
+            response.headers["X-Pangu-Trace-Id"] = observation[0].trace_id
+            return response
         if not loopback:
             mobile_api = path.startswith("/api/mobile/v1/")
             mobile_static = request.method in {"GET", "HEAD"} and _is_mobile_static_path(path)
@@ -370,7 +459,7 @@ def create_app(
                 or not _trusted_mobile_host(request.url.hostname)
                 or not (mobile_api or mobile_static)
             ):
-                return JSONResponse(
+                return finish_observation(JSONResponse(
                     status_code=403,
                     content={
                         "detail": {
@@ -378,13 +467,13 @@ def create_app(
                             "message": "远程设备只能访问受保护的移动助手接口与静态资源",
                         }
                     },
-                )
+                ), blocked=True, error_code="REMOTE_ROUTE_FORBIDDEN")
         if (
             request.method in {"POST", "PUT", "PATCH", "DELETE"}
             and not path.startswith("/api/mobile/v1/")
         ):
             if request.headers.get("x-ashare-client") != "local-dashboard":
-                return JSONResponse(
+                return finish_observation(JSONResponse(
                     status_code=403,
                     content={
                         "detail": {
@@ -392,13 +481,13 @@ def create_app(
                             "message": "仅允许本机控制台发起状态变更",
                         }
                     },
-                )
+                ), blocked=True, error_code="LOCAL_CLIENT_REQUIRED")
             origin = request.headers.get("origin")
             if origin and origin not in {
                 f"http://127.0.0.1:{port}",
                 f"http://localhost:{port}",
             }:
-                return JSONResponse(
+                return finish_observation(JSONResponse(
                     status_code=403,
                     content={
                         "detail": {
@@ -406,8 +495,19 @@ def create_app(
                             "message": "请求来源不受信任",
                         }
                     },
-                )
-        response = await call_next(request)
+                ), blocked=True, error_code="UNTRUSTED_ORIGIN")
+        try:
+            response = await call_next(request)
+        except Exception as exc:
+            if observation is not None:
+                try:
+                    observability.finish_request(
+                        observation[0], observation[1], operation_id="api.unhandled",
+                        method=request.method, status_code=500, error_code=type(exc).__name__,
+                    )
+                except (AuditStoreError, ValueError, OSError):
+                    pass  # The original API exception remains authoritative.
+            raise
         if path.startswith("/api/mobile/v1/") or _is_mobile_static_path(path):
             response.headers["Content-Security-Policy"] = (
                 "default-src 'self'; script-src 'self'; connect-src 'self'; "
@@ -422,7 +522,11 @@ def create_app(
                 "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
             )
             response.headers["Cache-Control"] = "no-store"
-        return response
+        if account_mutation and response.status_code < 400:
+            # Dashboard is a read cache only. A successful paper mutation must
+            # become visible on the very next read across every module.
+            investment_dashboard.invalidate()
+        return finish_observation(response)
 
     mobile_bearer = HTTPBearer(auto_error=False)
 
@@ -846,7 +950,35 @@ def create_app(
     )
     def get_health() -> dict:
         """Report process health without implying trading or model readiness."""
-        return {"status": "ok", "service": "pangu-tianji", "version": "1.0.0"}
+        return {"status": "ok", "service": "pangu-tianji", "version": SYSTEM_VERSION}
+
+    @app.get(
+        "/api/v1/dashboard/overview",
+        operation_id="get_investment_dashboard_overview",
+        response_model=InvestmentDashboardOverviewResponse,
+    )
+    def get_investment_dashboard_overview() -> dict:
+        """Return one cached, read-only cockpit instead of browser-side aggregation."""
+        return investment_dashboard.overview()
+
+    @app.post(
+        "/api/v1/assistant/query",
+        operation_id="query_personal_ai_assistant",
+        response_model=PersonalAssistantQueryResponse,
+    )
+    def query_personal_ai_assistant(payload: PersonalAssistantQueryRequest) -> dict:
+        """Answer one explicit fixed-intent question from read-only evidence."""
+        try:
+            return personal_ai_assistant.query(
+                intent=payload.intent,
+                symbol=payload.symbol,
+                question=payload.question,
+            )
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=422,
+                detail={"code": "PERSONAL_ASSISTANT_REQUEST_INVALID", "message": str(exc)},
+            ) from exc
 
     @app.get(
         "/api/v1/personal-os",
@@ -955,6 +1087,114 @@ def create_app(
             raise HTTPException(
                 status_code=409,
                 detail={"code": "PERSONAL_JOURNAL_ARCHIVE_REJECTED", "message": str(exc)},
+            ) from exc
+
+    @app.get(
+        "/api/v1/review",
+        operation_id="get_investment_review_loop",
+    )
+    def get_investment_review_loop(sync_reminders: bool = Query(default=False)) -> dict:
+        """Return the one-page review loop; optional sync never calls a model or order path."""
+        try:
+            return personal_os.review_dashboard(sync=sync_reminders)
+        except (ValueError, PersonalOSStoreError) as exc:
+            raise HTTPException(
+                status_code=409,
+                detail={"code":"INVESTMENT_REVIEW_UNAVAILABLE","message":str(exc)},
+            ) from exc
+
+    @app.post(
+        "/api/v1/review/journal",
+        operation_id="create_investment_review_journal",
+    )
+    def create_investment_review_journal(payload: PersonalJournalCreateRequest) -> dict:
+        """Create the same Personal OS Journal through the simplified review contract."""
+        try:
+            return personal_os.create_journal(payload.model_dump(mode="json"))
+        except (KeyError, ValueError, PersonalOSStoreError) as exc:
+            raise HTTPException(
+                status_code=409,
+                detail={"code":"INVESTMENT_JOURNAL_REJECTED","message":str(exc)},
+            ) from exc
+
+    @app.get(
+        "/api/v1/review/journal",
+        operation_id="list_investment_review_journal",
+    )
+    def list_investment_review_journal(limit: int = Query(100, ge=1, le=500)) -> dict:
+        """List the canonical four-type Personal OS Journal."""
+        return personal_os.journals(limit)
+
+    @app.get(
+        "/api/v1/review/{journal_id}/draft",
+        operation_id="get_investment_review_draft",
+    )
+    def get_investment_review_draft(
+        journal_id: str = ApiPath(min_length=3,max_length=180),
+    ) -> dict:
+        """Create a transient factual draft only after explicit user action."""
+        try:
+            return personal_os.review_draft(journal_id)
+        except (KeyError, ValueError, PersonalOSStoreError) as exc:
+            raise HTTPException(
+                status_code=409,
+                detail={"code":"INVESTMENT_REVIEW_DRAFT_REJECTED","message":str(exc)},
+            ) from exc
+
+    @app.post(
+        "/api/v1/review/{journal_id}",
+        operation_id="confirm_investment_review",
+    )
+    def confirm_investment_review(
+        payload: InvestmentReviewConfirmRequest,
+        journal_id: str = ApiPath(min_length=3,max_length=180),
+    ) -> dict:
+        """Persist one user-confirmed review and optional user-confirmed Lesson."""
+        try:
+            return personal_os.confirm_review(journal_id,payload.model_dump(mode="json"))
+        except (KeyError, ValueError, PersonalOSStoreError) as exc:
+            raise HTTPException(
+                status_code=409,
+                detail={"code":"INVESTMENT_REVIEW_CONFIRM_REJECTED","message":str(exc)},
+            ) from exc
+
+    @app.get(
+        "/api/v1/review/reminders",
+        operation_id="list_investment_review_reminders",
+    )
+    def list_investment_review_reminders(limit: int = Query(100, ge=1, le=500)) -> dict:
+        """List only the four bounded Personal OS in-app reminder types."""
+        return personal_os.reminders(limit)
+
+    @app.post(
+        "/api/v1/review/reminders/sync",
+        operation_id="sync_investment_review_reminders",
+    )
+    def sync_investment_review_reminders() -> dict:
+        """Compare saved authority snapshots without research, AI or execution side effects."""
+        try:
+            return personal_os.sync_review_reminders()
+        except (KeyError, ValueError, PersonalOSStoreError) as exc:
+            raise HTTPException(
+                status_code=409,
+                detail={"code":"INVESTMENT_REMINDER_SYNC_REJECTED","message":str(exc)},
+            ) from exc
+
+    @app.post(
+        "/api/v1/review/reminders/{reminder_id}/status",
+        operation_id="update_investment_review_reminder_status",
+    )
+    def update_investment_review_reminder_status(
+        payload: InvestmentReminderStatusRequest,
+        reminder_id: str = ApiPath(min_length=3,max_length=180),
+    ) -> dict:
+        """Update only OPEN/READ/DISMISSED/DONE for one in-app reminder."""
+        try:
+            return personal_os.update_reminder(reminder_id,payload.status)
+        except (KeyError, ValueError, PersonalOSStoreError) as exc:
+            raise HTTPException(
+                status_code=409,
+                detail={"code":"INVESTMENT_REMINDER_STATUS_REJECTED","message":str(exc)},
             ) from exc
 
     @app.get(
@@ -1755,7 +1995,7 @@ def create_app(
         response_model=WorkbenchResponse,
     )
     def get_decision_workbench() -> dict:
-        """Return a read-only recap of actual MockBroker positions and activity."""
+        """Return paper recap and persist only verified same-day NAV evidence."""
         try:
             return workbench.get()
         except (RuntimeError, ValueError, FileNotFoundError) as exc:
@@ -1854,6 +2094,220 @@ def create_app(
                 status_code=404,
                 detail={"code": "INVESTMENT_NOTIFICATION_NOT_FOUND", "message": str(exc)},
             ) from exc
+
+    @app.get(
+        "/api/v1/engineering",
+        operation_id="get_engineering_dashboard",
+        response_model=EngineeringDashboardResponse,
+    )
+    def get_engineering_dashboard() -> dict:
+        """Read the latest engineering state without running checks or backups."""
+        return engineering.dashboard()
+
+    @app.get("/api/v1/engineering/versions", operation_id="get_engineering_versions")
+    def get_engineering_versions() -> dict:
+        """Return the canonical immutable version manifest."""
+        return engineering.dashboard()["versions"]
+
+    @app.get("/api/v1/engineering/config", operation_id="get_engineering_configuration")
+    def get_engineering_configuration() -> dict:
+        """Return the redacted versioned configuration snapshot."""
+        return engineering.dashboard()["configuration"]
+
+    @app.get(
+        "/api/v1/engineering/events",
+        operation_id="list_engineering_events",
+        response_model=EngineeringItemsResponse,
+    )
+    def list_engineering_events(limit: int = Query(default=50, ge=1, le=500)) -> dict:
+        """List bounded structured engineering events."""
+        return engineering.list_events(limit)
+
+    @app.get(
+        "/api/v1/engineering/backups",
+        operation_id="list_engineering_backups",
+        response_model=EngineeringItemsResponse,
+    )
+    def list_engineering_backups(limit: int = Query(default=30, ge=1, le=365)) -> dict:
+        """List immutable backup audit records."""
+        return engineering.list_backups(limit)
+
+    @app.post(
+        "/api/v1/engineering/health/run",
+        operation_id="run_engineering_health",
+        response_model=EngineeringHealthResponse,
+    )
+    def run_engineering_health() -> dict:
+        """Run read-only engineering checks; this endpoint cannot create orders."""
+        return engineering.run_health()
+
+    @app.post(
+        "/api/v1/engineering/backups",
+        operation_id="create_engineering_backup",
+        response_model=EngineeringBackupResponse,
+    )
+    def create_engineering_backup() -> dict:
+        """Create a local verified evidence backup with no investment side effects."""
+        try:
+            return engineering.create_backup()
+        except (BackupError, ConfigurationError) as exc:
+            raise HTTPException(
+                status_code=500,
+                detail={"code": "ENGINEERING_BACKUP_FAILED", "message": str(exc)},
+            ) from exc
+
+    @app.get(
+        "/api/v1/observability",
+        operation_id="get_observability_dashboard",
+        response_model=ObservabilityDashboardResponse,
+    )
+    def get_observability_dashboard(hours: int = Query(default=24, ge=1, le=2160)) -> dict:
+        """Read the server-composed observability dashboard."""
+        return observability.dashboard(hours=hours)
+
+    @app.get(
+        "/api/v1/observability/metrics",
+        operation_id="list_observability_metrics",
+        response_model=ObservabilityItemsResponse,
+    )
+    def list_observability_metrics(
+        metric_name: str | None = Query(default=None, min_length=3, max_length=96),
+        start: datetime | None = None,
+        end: datetime | None = None,
+        limit: int = Query(default=500, ge=1, le=2000),
+    ) -> dict:
+        """List bounded metric samples over a validated time range."""
+        if start and end and (end < start or (end - start).days > 90):
+            raise HTTPException(status_code=422, detail={"code": "OBSERVABILITY_TIME_RANGE_INVALID", "message": "时间范围必须正序且不超过90天"})
+        return observability.list_metrics(
+            metric_name=metric_name,
+            start=start.isoformat() if start else None,
+            end=end.isoformat() if end else None,
+            limit=limit,
+        )
+
+    @app.get(
+        "/api/v1/observability/traces",
+        operation_id="list_observability_traces",
+        response_model=ObservabilityItemsResponse,
+    )
+    def list_observability_traces(
+        query: str | None = Query(default=None, max_length=160),
+        start: datetime | None = None,
+        end: datetime | None = None,
+        limit: int = Query(default=100, ge=1, le=500),
+    ) -> dict:
+        """Search trace headers by trace/job/run identifiers."""
+        if start and end and (end < start or (end - start).days > 90):
+            raise HTTPException(status_code=422, detail={"code": "OBSERVABILITY_TIME_RANGE_INVALID", "message": "时间范围必须正序且不超过90天"})
+        return observability.list_traces(query=query, start=start.isoformat() if start else None, end=end.isoformat() if end else None, limit=limit)
+
+    @app.get(
+        "/api/v1/observability/traces/{trace_id}",
+        operation_id="get_observability_trace",
+        response_model=ObservabilityTraceResponse,
+    )
+    def get_observability_trace(trace_id: str = ApiPath(pattern=r"^[A-Za-z0-9_.:-]{1,160}$")) -> dict:
+        """Read one complete trace tree by its correlation identifier."""
+        result = observability.traces.trace(trace_id)
+        if not result:
+            raise HTTPException(status_code=404, detail={"code": "OBSERVABILITY_TRACE_NOT_FOUND", "message": "Trace 不存在"})
+        return result
+
+    @app.get(
+        "/api/v1/observability/jobs",
+        operation_id="list_observability_jobs",
+        response_model=ObservabilityItemsResponse,
+    )
+    def list_observability_jobs(
+        status: str | None = Query(default=None, pattern=r"^(CREATED|RUNNING|SUCCEEDED|FAILED|BLOCKED|CANCELLED|STALE)$"),
+        query: str | None = Query(default=None, max_length=160),
+        limit: int = Query(default=100, ge=1, le=500),
+    ) -> dict:
+        """List job observations; this endpoint cannot run or retry jobs."""
+        return observability.list_jobs(status=status, query=query, limit=limit)
+
+    @app.get(
+        "/api/v1/observability/alerts",
+        operation_id="list_observability_alerts",
+        response_model=ObservabilityItemsResponse,
+    )
+    def list_observability_alerts(
+        status: str | None = Query(default=None, pattern=r"^(OPEN|ACKNOWLEDGED|RESOLVED|SUPPRESSED)$"),
+        severity: str | None = Query(default=None, pattern=r"^(INFO|WARNING|ERROR|CRITICAL)$"),
+        limit: int = Query(default=100, ge=1, le=500),
+    ) -> dict:
+        """List alert evidence and lifecycle events."""
+        return observability.list_alerts(status=status, severity=severity, limit=limit)
+
+    @app.post(
+        "/api/v1/observability/alerts/{alert_id}/acknowledge",
+        operation_id="acknowledge_observability_alert",
+    )
+    def acknowledge_observability_alert(payload: ObservabilityAcknowledgeRequest, alert_id: str = ApiPath(pattern=r"^alert-[a-f0-9]{32}$")) -> dict:
+        """Acknowledge one alert manually without remediating its root cause."""
+        try:
+            return observability.alerts.acknowledge(alert_id, actor=payload.actor, note=payload.note)
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail={"code": "OBSERVABILITY_ALERT_CONFLICT", "message": str(exc)}) from exc
+
+    @app.get(
+        "/api/v1/observability/incidents",
+        operation_id="list_observability_incidents",
+        response_model=ObservabilityItemsResponse,
+    )
+    def list_observability_incidents(
+        status: str | None = Query(default=None, pattern=r"^(OPEN|INVESTIGATING|MITIGATED|RESOLVED|CLOSED)$"),
+        limit: int = Query(default=100, ge=1, le=500),
+    ) -> dict:
+        """List human-controlled engineering incidents."""
+        return observability.list_incidents(status=status, limit=limit)
+
+    @app.post("/api/v1/observability/incidents", operation_id="create_observability_incident")
+    def create_observability_incident(payload: ObservabilityIncidentCreateRequest) -> dict:
+        """Create one incident as an explicit local human action."""
+        try:
+            return observability.incidents.create(**payload.model_dump())
+        except (ValueError, KeyError) as exc:
+            raise HTTPException(status_code=422, detail={"code": "OBSERVABILITY_INCIDENT_INVALID", "message": str(exc)}) from exc
+
+    @app.post(
+        "/api/v1/observability/incidents/{incident_id}/status",
+        operation_id="update_observability_incident_status",
+    )
+    def update_observability_incident_status(payload: ObservabilityIncidentStatusRequest, incident_id: str = ApiPath(pattern=r"^incident-[a-f0-9]{32}$")) -> dict:
+        """Apply one optimistic, audited incident state transition."""
+        try:
+            return observability.incidents.transition(incident_id, target=payload.status, expected_version=payload.expected_version, actor=payload.actor, note=payload.note, root_cause=payload.root_cause, resolution_note=payload.resolution_note)
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail={"code": "OBSERVABILITY_INCIDENT_CONFLICT", "message": str(exc)}) from exc
+
+    @app.get(
+        "/api/v1/observability/slos",
+        operation_id="list_observability_slos",
+        response_model=ObservabilityItemsResponse,
+    )
+    def list_observability_slos() -> dict:
+        """List the latest persisted SLO evaluations."""
+        return observability.list_slos()
+
+    @app.post("/api/v1/observability/evaluate", operation_id="evaluate_observability")
+    def evaluate_observability() -> dict:
+        """Explicitly sample existing evidence and evaluate SLO/alerts; no repair."""
+        return observability.evaluate()
+
+    @app.post("/api/v1/observability/retention/plan", operation_id="plan_observability_retention")
+    def plan_observability_retention() -> dict:
+        """Persist a retention plan without deleting any data."""
+        return observability.retention.plan()
+
+    @app.post("/api/v1/observability/retention/run", operation_id="run_observability_retention")
+    def run_observability_retention(payload: ObservabilityRetentionRunRequest) -> dict:
+        """Execute one exact retention plan; never clean business stores."""
+        try:
+            return observability.retention.run(payload.retention_id, payload.plan_hash)
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail={"code": "OBSERVABILITY_RETENTION_CONFLICT", "message": str(exc)}) from exc
 
     @app.get("/api/v1/status", operation_id="get_status")
     def get_status() -> dict:

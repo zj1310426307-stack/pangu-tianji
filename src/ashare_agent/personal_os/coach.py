@@ -24,7 +24,7 @@ class PersonalInvestmentCoach:
         scoped_events = [item for item in events if start <= date.fromisoformat(str(item["trade_date"])) <= end]
         scoped_journals = [item for item in journals if start <= date.fromisoformat(str(item["trade_date"])) <= end]
         trades = [item for item in scoped_events if item.get("event_type") in {"BUY", "SELL"}]
-        reflections = [item for item in scoped_journals if item.get("entry_type") in {"review", "lesson"}]
+        reflections = [item for item in scoped_journals if item.get("entry_type") in {"REVIEW", "LESSON"}]
         evidence_payloads = {
             "profile": {
                 "profile_id": profile.get("profile_id"),
@@ -92,4 +92,3 @@ class PersonalInvestmentCoach:
             "can_trade": False,
             "can_create_orders": False,
         }
-

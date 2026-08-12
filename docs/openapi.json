@@ -3,7 +3,7 @@
   "info": {
     "title": "盘古·天机 API",
     "description": "使用同花顺点时数据进行七维横截面研究、生产同构回测准备与本机MockBroker模拟成交。无实盘或券商下单接口。",
-    "version": "1.0.0"
+    "version": "1.1.0"
   },
   "paths": {
     "/api/v1/mobile/pairing-codes": {
@@ -854,6 +854,64 @@
         }
       }
     },
+    "/api/v1/dashboard/overview": {
+      "get": {
+        "summary": "Get Investment Dashboard Overview",
+        "description": "Return one cached, read-only cockpit instead of browser-side aggregation.",
+        "operationId": "get_investment_dashboard_overview",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvestmentDashboardOverviewResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assistant/query": {
+      "post": {
+        "summary": "Query Personal Ai Assistant",
+        "description": "Answer one explicit fixed-intent question from read-only evidence.",
+        "operationId": "query_personal_ai_assistant",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PersonalAssistantQueryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonalAssistantQueryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/personal-os": {
       "get": {
         "summary": "Get Personal Investment Os",
@@ -1186,6 +1244,351 @@
                   "type": "object",
                   "additionalProperties": true,
                   "title": "Response Archive Personal Investment Journal"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/review": {
+      "get": {
+        "summary": "Get Investment Review Loop",
+        "description": "Return the one-page review loop; optional sync never calls a model or order path.",
+        "operationId": "get_investment_review_loop",
+        "parameters": [
+          {
+            "name": "sync_reminders",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Sync Reminders"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Investment Review Loop"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/review/journal": {
+      "post": {
+        "summary": "Create Investment Review Journal",
+        "description": "Create the same Personal OS Journal through the simplified review contract.",
+        "operationId": "create_investment_review_journal",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PersonalJournalCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Create Investment Review Journal"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "List Investment Review Journal",
+        "description": "List the canonical four-type Personal OS Journal.",
+        "operationId": "list_investment_review_journal",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response List Investment Review Journal"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/review/{journal_id}/draft": {
+      "get": {
+        "summary": "Get Investment Review Draft",
+        "description": "Create a transient factual draft only after explicit user action.",
+        "operationId": "get_investment_review_draft",
+        "parameters": [
+          {
+            "name": "journal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 180,
+              "title": "Journal Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Investment Review Draft"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/review/{journal_id}": {
+      "post": {
+        "summary": "Confirm Investment Review",
+        "description": "Persist one user-confirmed review and optional user-confirmed Lesson.",
+        "operationId": "confirm_investment_review",
+        "parameters": [
+          {
+            "name": "journal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 180,
+              "title": "Journal Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvestmentReviewConfirmRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Confirm Investment Review"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/review/reminders": {
+      "get": {
+        "summary": "List Investment Review Reminders",
+        "description": "List only the four bounded Personal OS in-app reminder types.",
+        "operationId": "list_investment_review_reminders",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response List Investment Review Reminders"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/review/reminders/sync": {
+      "post": {
+        "summary": "Sync Investment Review Reminders",
+        "description": "Compare saved authority snapshots without research, AI or execution side effects.",
+        "operationId": "sync_investment_review_reminders",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Sync Investment Review Reminders"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/review/reminders/{reminder_id}/status": {
+      "post": {
+        "summary": "Update Investment Review Reminder Status",
+        "description": "Update only OPEN/READ/DISMISSED/DONE for one in-app reminder.",
+        "operationId": "update_investment_review_reminder_status",
+        "parameters": [
+          {
+            "name": "reminder_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 180,
+              "title": "Reminder Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvestmentReminderStatusRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Update Investment Review Reminder Status"
                 }
               }
             }
@@ -3425,7 +3828,7 @@
     "/api/v1/workbench": {
       "get": {
         "summary": "Get Decision Workbench",
-        "description": "Return a read-only recap of actual MockBroker positions and activity.",
+        "description": "Return paper recap and persist only verified same-day NAV evidence.",
         "operationId": "get_decision_workbench",
         "responses": {
           "200": {
@@ -3693,6 +4096,923 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/InvestmentNotificationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/engineering": {
+      "get": {
+        "summary": "Get Engineering Dashboard",
+        "description": "Read the latest engineering state without running checks or backups.",
+        "operationId": "get_engineering_dashboard",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineeringDashboardResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/engineering/versions": {
+      "get": {
+        "summary": "Get Engineering Versions",
+        "description": "Return the canonical immutable version manifest.",
+        "operationId": "get_engineering_versions",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Get Engineering Versions"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/engineering/config": {
+      "get": {
+        "summary": "Get Engineering Configuration",
+        "description": "Return the redacted versioned configuration snapshot.",
+        "operationId": "get_engineering_configuration",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Get Engineering Configuration"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/engineering/events": {
+      "get": {
+        "summary": "List Engineering Events",
+        "description": "List bounded structured engineering events.",
+        "operationId": "list_engineering_events",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineeringItemsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/engineering/backups": {
+      "get": {
+        "summary": "List Engineering Backups",
+        "description": "List immutable backup audit records.",
+        "operationId": "list_engineering_backups",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 365,
+              "minimum": 1,
+              "default": 30,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineeringItemsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Engineering Backup",
+        "description": "Create a local verified evidence backup with no investment side effects.",
+        "operationId": "create_engineering_backup",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineeringBackupResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/engineering/health/run": {
+      "post": {
+        "summary": "Run Engineering Health",
+        "description": "Run read-only engineering checks; this endpoint cannot create orders.",
+        "operationId": "run_engineering_health",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineeringHealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/observability": {
+      "get": {
+        "summary": "Get Observability Dashboard",
+        "description": "Read the server-composed observability dashboard.",
+        "operationId": "get_observability_dashboard",
+        "parameters": [
+          {
+            "name": "hours",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 2160,
+              "minimum": 1,
+              "default": 24,
+              "title": "Hours"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObservabilityDashboardResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/observability/metrics": {
+      "get": {
+        "summary": "List Observability Metrics",
+        "description": "List bounded metric samples over a validated time range.",
+        "operationId": "list_observability_metrics",
+        "parameters": [
+          {
+            "name": "metric_name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 96
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Metric Name"
+            }
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Start"
+            }
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 2000,
+              "minimum": 1,
+              "default": 500,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObservabilityItemsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/observability/traces": {
+      "get": {
+        "summary": "List Observability Traces",
+        "description": "Search trace headers by trace/job/run identifiers.",
+        "operationId": "list_observability_traces",
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 160
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Query"
+            }
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Start"
+            }
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObservabilityItemsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/observability/traces/{trace_id}": {
+      "get": {
+        "summary": "Get Observability Trace",
+        "description": "Read one complete trace tree by its correlation identifier.",
+        "operationId": "get_observability_trace",
+        "parameters": [
+          {
+            "name": "trace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.:-]{1,160}$",
+              "title": "Trace Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObservabilityTraceResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/observability/jobs": {
+      "get": {
+        "summary": "List Observability Jobs",
+        "description": "List job observations; this endpoint cannot run or retry jobs.",
+        "operationId": "list_observability_jobs",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(CREATED|RUNNING|SUCCEEDED|FAILED|BLOCKED|CANCELLED|STALE)$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 160
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Query"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObservabilityItemsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/observability/alerts": {
+      "get": {
+        "summary": "List Observability Alerts",
+        "description": "List alert evidence and lifecycle events.",
+        "operationId": "list_observability_alerts",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(OPEN|ACKNOWLEDGED|RESOLVED|SUPPRESSED)$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "severity",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(INFO|WARNING|ERROR|CRITICAL)$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Severity"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObservabilityItemsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/observability/alerts/{alert_id}/acknowledge": {
+      "post": {
+        "summary": "Acknowledge Observability Alert",
+        "description": "Acknowledge one alert manually without remediating its root cause.",
+        "operationId": "acknowledge_observability_alert",
+        "parameters": [
+          {
+            "name": "alert_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^alert-[a-f0-9]{32}$",
+              "title": "Alert Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ObservabilityAcknowledgeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Acknowledge Observability Alert"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/observability/incidents": {
+      "get": {
+        "summary": "List Observability Incidents",
+        "description": "List human-controlled engineering incidents.",
+        "operationId": "list_observability_incidents",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(OPEN|INVESTIGATING|MITIGATED|RESOLVED|CLOSED)$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObservabilityItemsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Observability Incident",
+        "description": "Create one incident as an explicit local human action.",
+        "operationId": "create_observability_incident",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ObservabilityIncidentCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Create Observability Incident"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/observability/incidents/{incident_id}/status": {
+      "post": {
+        "summary": "Update Observability Incident Status",
+        "description": "Apply one optimistic, audited incident state transition.",
+        "operationId": "update_observability_incident_status",
+        "parameters": [
+          {
+            "name": "incident_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^incident-[a-f0-9]{32}$",
+              "title": "Incident Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ObservabilityIncidentStatusRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Update Observability Incident Status"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/observability/slos": {
+      "get": {
+        "summary": "List Observability Slos",
+        "description": "List the latest persisted SLO evaluations.",
+        "operationId": "list_observability_slos",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObservabilityItemsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/observability/evaluate": {
+      "post": {
+        "summary": "Evaluate Observability",
+        "description": "Explicitly sample existing evidence and evaluate SLO/alerts; no repair.",
+        "operationId": "evaluate_observability",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Evaluate Observability"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/observability/retention/plan": {
+      "post": {
+        "summary": "Plan Observability Retention",
+        "description": "Persist a retention plan without deleting any data.",
+        "operationId": "plan_observability_retention",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Plan Observability Retention"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/observability/retention/run": {
+      "post": {
+        "summary": "Run Observability Retention",
+        "description": "Execute one exact retention plan; never clean business stores.",
+        "operationId": "run_observability_retention",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ObservabilityRetentionRunRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Run Observability Retention"
                 }
               }
             }
@@ -5817,6 +7137,397 @@
         "title": "DisciplineScore",
         "description": "Score evidence completeness without claiming investment quality."
       },
+      "EngineeringBackupResponse": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "title": "Schema Version"
+          },
+          "backup_id": {
+            "type": "string",
+            "title": "Backup Id"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "version_manifest": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Version Manifest"
+          },
+          "file_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "File Count"
+          },
+          "byte_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Byte Count"
+          },
+          "files": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Files"
+          },
+          "status": {
+            "type": "string",
+            "const": "SUCCEEDED",
+            "title": "Status"
+          },
+          "backup_path": {
+            "type": "string",
+            "title": "Backup Path"
+          },
+          "manifest_hash": {
+            "type": "string",
+            "title": "Manifest Hash"
+          },
+          "safety": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "type": "object",
+            "title": "Safety"
+          },
+          "can_trade": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Trade"
+          },
+          "can_create_orders": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Create Orders"
+          },
+          "can_modify_strategy": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Modify Strategy"
+          },
+          "can_modify_factor_weights": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Modify Factor Weights"
+          },
+          "can_modify_portfolio": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Modify Portfolio"
+          },
+          "can_modify_risk": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Modify Risk"
+          },
+          "can_access_broker_credentials": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Access Broker Credentials"
+          }
+        },
+        "type": "object",
+        "required": [
+          "schema_version",
+          "backup_id",
+          "created_at",
+          "version_manifest",
+          "file_count",
+          "byte_count",
+          "files",
+          "status",
+          "backup_path",
+          "manifest_hash",
+          "safety",
+          "can_trade",
+          "can_create_orders",
+          "can_modify_strategy",
+          "can_modify_factor_weights",
+          "can_modify_portfolio",
+          "can_modify_risk",
+          "can_access_broker_credentials"
+        ],
+        "title": "EngineeringBackupResponse",
+        "description": "Describe one verified local backup without exposing its file contents."
+      },
+      "EngineeringDashboardResponse": {
+        "properties": {
+          "service_version": {
+            "type": "string",
+            "const": "engineering-stabilization-v1.0.0",
+            "title": "Service Version"
+          },
+          "versions": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Versions"
+          },
+          "configuration": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Configuration"
+          },
+          "health": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Health"
+          },
+          "backups": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Backups"
+          },
+          "events": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Events"
+          },
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Counts"
+          },
+          "safety": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "type": "object",
+            "title": "Safety"
+          },
+          "can_trade": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Trade"
+          },
+          "can_create_orders": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Create Orders"
+          },
+          "can_modify_strategy": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Modify Strategy"
+          },
+          "can_modify_factor_weights": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Modify Factor Weights"
+          },
+          "can_modify_portfolio": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Modify Portfolio"
+          },
+          "can_modify_risk": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Modify Risk"
+          },
+          "can_access_broker_credentials": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Access Broker Credentials"
+          }
+        },
+        "type": "object",
+        "required": [
+          "service_version",
+          "versions",
+          "configuration",
+          "health",
+          "backups",
+          "events",
+          "counts",
+          "safety",
+          "can_trade",
+          "can_create_orders",
+          "can_modify_strategy",
+          "can_modify_factor_weights",
+          "can_modify_portfolio",
+          "can_modify_risk",
+          "can_access_broker_credentials"
+        ],
+        "title": "EngineeringDashboardResponse",
+        "description": "Expose persisted engineering state without running mutable workflows."
+      },
+      "EngineeringHealthResponse": {
+        "properties": {
+          "health_id": {
+            "type": "string",
+            "title": "Health Id"
+          },
+          "checked_at": {
+            "type": "string",
+            "title": "Checked At"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "HEALTHY",
+              "DEGRADED",
+              "UNHEALTHY"
+            ],
+            "title": "Status"
+          },
+          "score": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Score"
+          },
+          "weights": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Weights"
+          },
+          "components": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Components"
+          },
+          "config_hash": {
+            "type": "string",
+            "title": "Config Hash"
+          },
+          "version_manifest_hash": {
+            "type": "string",
+            "title": "Version Manifest Hash"
+          },
+          "evidence_hash": {
+            "type": "string",
+            "title": "Evidence Hash"
+          },
+          "safety": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "type": "object",
+            "title": "Safety"
+          },
+          "can_trade": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Trade"
+          },
+          "can_create_orders": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Create Orders"
+          },
+          "can_modify_strategy": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Modify Strategy"
+          },
+          "can_modify_risk": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Modify Risk"
+          }
+        },
+        "type": "object",
+        "required": [
+          "health_id",
+          "checked_at",
+          "status",
+          "score",
+          "weights",
+          "components",
+          "config_hash",
+          "version_manifest_hash",
+          "evidence_hash",
+          "safety",
+          "can_trade",
+          "can_create_orders",
+          "can_modify_strategy",
+          "can_modify_risk"
+        ],
+        "title": "EngineeringHealthResponse",
+        "description": "Return one immutable four-dimension engineering health evaluation."
+      },
+      "EngineeringItemsResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "safety": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "type": "object",
+            "title": "Safety"
+          },
+          "can_trade": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Trade"
+          },
+          "can_create_orders": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Create Orders"
+          },
+          "can_modify_strategy": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Modify Strategy"
+          },
+          "can_modify_factor_weights": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Modify Factor Weights"
+          },
+          "can_modify_portfolio": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Modify Portfolio"
+          },
+          "can_modify_risk": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Modify Risk"
+          },
+          "can_access_broker_credentials": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Access Broker Credentials"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "safety",
+          "can_trade",
+          "can_create_orders",
+          "can_modify_strategy",
+          "can_modify_factor_weights",
+          "can_modify_portfolio",
+          "can_modify_risk",
+          "can_access_broker_credentials"
+        ],
+        "title": "EngineeringItemsResponse",
+        "description": "Return one bounded engineering audit collection."
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -5854,6 +7565,168 @@
           "version"
         ],
         "title": "HealthResponse"
+      },
+      "InvestmentDashboardOverviewResponse": {
+        "properties": {
+          "service_version": {
+            "type": "string",
+            "const": "investment-dashboard-v1.0.0",
+            "title": "Service Version"
+          },
+          "snapshot_id": {
+            "type": "string",
+            "title": "Snapshot Id"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "expires_at": {
+            "type": "string",
+            "title": "Expires At"
+          },
+          "cache_seconds": {
+            "type": "integer",
+            "maximum": 60.0,
+            "minimum": 1.0,
+            "title": "Cache Seconds"
+          },
+          "valuation_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valuation Version"
+          },
+          "risk_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Risk Version"
+          },
+          "ai_report_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ai Report Id"
+          },
+          "market": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Market"
+          },
+          "asset": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Asset"
+          },
+          "risk": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Risk"
+          },
+          "ai_summary": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Ai Summary"
+          },
+          "watchlist": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Watchlist"
+          },
+          "holding_health": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Holding Health"
+          },
+          "next_session_plan": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Next Session Plan"
+          },
+          "tasks": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Tasks"
+          },
+          "research": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Research"
+          },
+          "data_gaps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Data Gaps"
+          },
+          "safety": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Safety"
+          },
+          "can_trade": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Trade"
+          },
+          "can_create_orders": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Create Orders"
+          }
+        },
+        "type": "object",
+        "required": [
+          "service_version",
+          "snapshot_id",
+          "created_at",
+          "expires_at",
+          "cache_seconds",
+          "valuation_version",
+          "risk_version",
+          "ai_report_id",
+          "market",
+          "asset",
+          "risk",
+          "ai_summary",
+          "watchlist",
+          "holding_health",
+          "next_session_plan",
+          "tasks",
+          "research",
+          "data_gaps",
+          "safety",
+          "can_trade",
+          "can_create_orders"
+        ],
+        "title": "InvestmentDashboardOverviewResponse",
+        "description": "Expose the cached daily cockpit with every execution capability disabled."
       },
       "InvestmentNotificationResponse": {
         "properties": {
@@ -6201,6 +8074,128 @@
         ],
         "title": "InvestmentOperatingReportResponse",
         "description": "Return one immutable Daily Investment OS report and its evidence index."
+      },
+      "InvestmentReminderStatusRequest": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "READ",
+              "DISMISSED",
+              "DONE"
+            ],
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "InvestmentReminderStatusRequest",
+        "description": "Update only the in-app acknowledgement state of one reminder."
+      },
+      "InvestmentReviewConfirmRequest": {
+        "properties": {
+          "idempotency_key": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Idempotency Key"
+          },
+          "reviewed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Reviewed At"
+          },
+          "facts_changed": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "title": "Facts Changed"
+          },
+          "thesis_status": {
+            "type": "string",
+            "enum": [
+              "STILL_VALID",
+              "WEAKENED",
+              "INVALIDATED",
+              "INSUFFICIENT_EVIDENCE"
+            ],
+            "title": "Thesis Status"
+          },
+          "risk_status": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Risk Status"
+          },
+          "result_summary": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Result Summary"
+          },
+          "mistakes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 30,
+            "title": "Mistakes"
+          },
+          "good_decisions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 30,
+            "title": "Good Decisions"
+          },
+          "lesson_candidate": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lesson Candidate"
+          },
+          "evidence_refs": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "title": "Evidence Refs"
+          },
+          "draft": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Draft"
+          },
+          "user_confirmed": {
+            "type": "boolean",
+            "const": true,
+            "title": "User Confirmed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "idempotency_key",
+          "reviewed_at",
+          "thesis_status",
+          "risk_status",
+          "result_summary",
+          "user_confirmed"
+        ],
+        "title": "InvestmentReviewConfirmRequest",
+        "description": "Confirm one review; unconfirmed drafts are never persisted as memory."
       },
       "InvestorDigitalTwinUpdateRequest": {
         "properties": {
@@ -7999,6 +9994,575 @@
         ],
         "title": "ModelStatusResponse"
       },
+      "ObservabilityAcknowledgeRequest": {
+        "properties": {
+          "actor": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Actor",
+            "default": "local-user"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Note",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "title": "ObservabilityAcknowledgeRequest",
+        "description": "Acknowledge an alert as a local human action."
+      },
+      "ObservabilityDashboardResponse": {
+        "properties": {
+          "service_version": {
+            "type": "string",
+            "const": "pangu-observability-v1.0.0",
+            "title": "Service Version"
+          },
+          "generated_at": {
+            "type": "string",
+            "title": "Generated At"
+          },
+          "time_range_hours": {
+            "type": "integer",
+            "maximum": 2160.0,
+            "minimum": 1.0,
+            "title": "Time Range Hours"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "OBSERVING",
+              "ALERTING",
+              "BREACHED"
+            ],
+            "title": "Status"
+          },
+          "metrics": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Metrics"
+          },
+          "traces": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Traces"
+          },
+          "jobs": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Jobs"
+          },
+          "alerts": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Alerts"
+          },
+          "incidents": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Incidents"
+          },
+          "slos": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Slos"
+          },
+          "retention": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Retention"
+          },
+          "source_health_snapshot": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Health Snapshot"
+          },
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Counts"
+          },
+          "safety": {
+            "$ref": "#/components/schemas/ObservabilitySafetyResponse"
+          },
+          "can_trade": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Trade"
+          },
+          "can_create_orders": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Create Orders"
+          },
+          "can_modify_strategy": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Modify Strategy"
+          },
+          "can_modify_factor_weights": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Modify Factor Weights"
+          },
+          "can_modify_portfolio": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Modify Portfolio"
+          },
+          "can_modify_risk": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Modify Risk"
+          },
+          "can_auto_remediate": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Auto Remediate"
+          },
+          "can_access_broker_credentials": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Access Broker Credentials"
+          }
+        },
+        "type": "object",
+        "required": [
+          "service_version",
+          "generated_at",
+          "time_range_hours",
+          "status",
+          "metrics",
+          "traces",
+          "jobs",
+          "alerts",
+          "incidents",
+          "slos",
+          "retention",
+          "counts",
+          "safety",
+          "can_trade",
+          "can_create_orders",
+          "can_modify_strategy",
+          "can_modify_factor_weights",
+          "can_modify_portfolio",
+          "can_modify_risk",
+          "can_auto_remediate",
+          "can_access_broker_credentials"
+        ],
+        "title": "ObservabilityDashboardResponse",
+        "description": "Return a server-composed observability dashboard without browser formulas."
+      },
+      "ObservabilityIncidentCreateRequest": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Title"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "INFO",
+              "WARNING",
+              "ERROR",
+              "CRITICAL"
+            ],
+            "title": "Severity"
+          },
+          "impact": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Impact",
+            "default": ""
+          },
+          "root_cause": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Root Cause",
+            "default": ""
+          },
+          "links": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "title": "Links"
+          },
+          "actor": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Actor",
+            "default": "local-user"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "severity"
+        ],
+        "title": "ObservabilityIncidentCreateRequest",
+        "description": "Create one human-owned engineering incident."
+      },
+      "ObservabilityIncidentStatusRequest": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "INVESTIGATING",
+              "MITIGATED",
+              "RESOLVED",
+              "CLOSED"
+            ],
+            "title": "Status"
+          },
+          "expected_version": {
+            "type": "integer",
+            "maximum": 1000000.0,
+            "minimum": 1.0,
+            "title": "Expected Version"
+          },
+          "actor": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Actor",
+            "default": "local-user"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 800,
+            "minLength": 1,
+            "title": "Note"
+          },
+          "root_cause": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Root Cause"
+          },
+          "resolution_note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "expected_version",
+          "note"
+        ],
+        "title": "ObservabilityIncidentStatusRequest",
+        "description": "Move an incident through one optimistic human state transition."
+      },
+      "ObservabilityItemsResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "safety": {
+            "$ref": "#/components/schemas/ObservabilitySafetyResponse"
+          },
+          "can_trade": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Trade"
+          },
+          "can_create_orders": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Create Orders"
+          },
+          "can_modify_strategy": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Modify Strategy"
+          },
+          "can_modify_factor_weights": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Modify Factor Weights"
+          },
+          "can_modify_portfolio": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Modify Portfolio"
+          },
+          "can_modify_risk": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Modify Risk"
+          },
+          "can_auto_remediate": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Auto Remediate"
+          },
+          "can_access_broker_credentials": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Access Broker Credentials"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "safety",
+          "can_trade",
+          "can_create_orders",
+          "can_modify_strategy",
+          "can_modify_factor_weights",
+          "can_modify_portfolio",
+          "can_modify_risk",
+          "can_auto_remediate",
+          "can_access_broker_credentials"
+        ],
+        "title": "ObservabilityItemsResponse",
+        "description": "Return one bounded observability collection."
+      },
+      "ObservabilityRetentionRunRequest": {
+        "properties": {
+          "retention_id": {
+            "type": "string",
+            "pattern": "^retention-[a-f0-9]{32}$",
+            "title": "Retention Id"
+          },
+          "plan_hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Plan Hash"
+          }
+        },
+        "type": "object",
+        "required": [
+          "retention_id",
+          "plan_hash"
+        ],
+        "title": "ObservabilityRetentionRunRequest",
+        "description": "Execute one previously persisted retention plan by exact hash."
+      },
+      "ObservabilitySafetyResponse": {
+        "properties": {
+          "can_trade": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Trade"
+          },
+          "can_create_orders": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Create Orders"
+          },
+          "can_modify_strategy": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Modify Strategy"
+          },
+          "can_modify_factor_weights": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Modify Factor Weights"
+          },
+          "can_modify_portfolio": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Modify Portfolio"
+          },
+          "can_modify_risk": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Modify Risk"
+          },
+          "can_auto_remediate": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Auto Remediate"
+          },
+          "can_access_broker_credentials": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Access Broker Credentials"
+          }
+        },
+        "type": "object",
+        "required": [
+          "can_trade",
+          "can_create_orders",
+          "can_modify_strategy",
+          "can_modify_factor_weights",
+          "can_modify_portfolio",
+          "can_modify_risk",
+          "can_auto_remediate",
+          "can_access_broker_credentials"
+        ],
+        "title": "ObservabilitySafetyResponse",
+        "description": "Fix every observability capability outside investment execution."
+      },
+      "ObservabilityTraceResponse": {
+        "properties": {
+          "trace_id": {
+            "type": "string",
+            "title": "Trace Id"
+          },
+          "root_operation": {
+            "type": "string",
+            "title": "Root Operation"
+          },
+          "started_at": {
+            "type": "string",
+            "title": "Started At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "duration_ms": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Ms"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "linked_ids": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Linked Ids"
+          },
+          "evidence_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Hash"
+          },
+          "spans": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Spans"
+          },
+          "can_trade": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Trade"
+          },
+          "can_create_orders": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Create Orders"
+          },
+          "can_auto_remediate": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Auto Remediate"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trace_id",
+          "root_operation",
+          "started_at",
+          "status",
+          "linked_ids",
+          "spans",
+          "can_trade",
+          "can_create_orders",
+          "can_auto_remediate"
+        ],
+        "title": "ObservabilityTraceResponse",
+        "description": "Return one correlated trace tree."
+      },
       "PaperBrokerCancelResponse": {
         "properties": {
           "order": {
@@ -9359,6 +11923,353 @@
         "title": "PersonalArchiveRequest",
         "description": "Soft-archive one personal record under optimistic version control."
       },
+      "PersonalAssistantEvidenceReference": {
+        "properties": {
+          "evidence_id": {
+            "type": "string",
+            "title": "Evidence Id"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "observed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed At"
+          },
+          "data_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Time"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "report_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report Id"
+          },
+          "strategy_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Strategy Version"
+          },
+          "factor_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Factor Version"
+          },
+          "evidence_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Hash"
+          }
+        },
+        "type": "object",
+        "required": [
+          "evidence_id",
+          "source"
+        ],
+        "title": "PersonalAssistantEvidenceReference",
+        "description": "Expose a replayable evidence identity without leaking source payloads."
+      },
+      "PersonalAssistantQueryRequest": {
+        "properties": {
+          "intent": {
+            "type": "string",
+            "enum": [
+              "daily_attention",
+              "portfolio_analysis",
+              "stock_reason",
+              "portfolio_fit",
+              "behavior_review"
+            ],
+            "title": "Intent"
+          },
+          "symbol": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{6}\\.(SH|SZ)$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Symbol"
+          },
+          "question": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Question"
+          }
+        },
+        "type": "object",
+        "required": [
+          "intent"
+        ],
+        "title": "PersonalAssistantQueryRequest",
+        "description": "Select one of five fixed, evidence-bound personal investment questions."
+      },
+      "PersonalAssistantQueryResponse": {
+        "properties": {
+          "service_version": {
+            "type": "string",
+            "const": "personal-ai-assistant-v1.0.0",
+            "title": "Service Version"
+          },
+          "intent": {
+            "type": "string",
+            "enum": [
+              "daily_attention",
+              "portfolio_analysis",
+              "stock_reason",
+              "portfolio_fit",
+              "behavior_review"
+            ],
+            "title": "Intent"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "published",
+              "degraded",
+              "unavailable"
+            ],
+            "title": "Status"
+          },
+          "generated_at": {
+            "type": "string",
+            "title": "Generated At"
+          },
+          "symbol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Symbol"
+          },
+          "question": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Question"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "key_points": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Key Points"
+          },
+          "risks": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Risks"
+          },
+          "uncertainties": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Uncertainties"
+          },
+          "evidence_refs": {
+            "items": {
+              "$ref": "#/components/schemas/PersonalAssistantEvidenceReference"
+            },
+            "type": "array",
+            "title": "Evidence Refs"
+          },
+          "journal_context": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Journal Context"
+          },
+          "suggested_next_action": {
+            "type": "string",
+            "enum": [
+              "继续观察",
+              "查看风险详情",
+              "完成复盘",
+              "等待正式收盘run",
+              "记录投资理由"
+            ],
+            "title": "Suggested Next Action"
+          },
+          "model_used": {
+            "type": "boolean",
+            "title": "Model Used"
+          },
+          "read_only_whitelist": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Read Only Whitelist"
+          },
+          "safety": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Safety"
+          },
+          "used_for_execution": {
+            "type": "boolean",
+            "const": false,
+            "title": "Used For Execution"
+          },
+          "can_affect_execution": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Affect Execution"
+          },
+          "can_trade": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Trade"
+          },
+          "can_create_orders": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Create Orders"
+          },
+          "can_modify_strategy": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Modify Strategy"
+          },
+          "can_modify_factor_weights": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Modify Factor Weights"
+          },
+          "can_modify_portfolio": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Modify Portfolio"
+          },
+          "can_modify_risk": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Modify Risk"
+          },
+          "can_launch_experiment": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Launch Experiment"
+          },
+          "can_auto_remediate": {
+            "type": "boolean",
+            "const": false,
+            "title": "Can Auto Remediate"
+          }
+        },
+        "type": "object",
+        "required": [
+          "service_version",
+          "intent",
+          "status",
+          "generated_at",
+          "symbol",
+          "question",
+          "summary",
+          "key_points",
+          "risks",
+          "uncertainties",
+          "evidence_refs",
+          "suggested_next_action",
+          "model_used",
+          "read_only_whitelist",
+          "safety",
+          "used_for_execution",
+          "can_affect_execution",
+          "can_trade",
+          "can_create_orders",
+          "can_modify_strategy",
+          "can_modify_factor_weights",
+          "can_modify_portfolio",
+          "can_modify_risk",
+          "can_launch_experiment",
+          "can_auto_remediate"
+        ],
+        "title": "PersonalAssistantQueryResponse",
+        "description": "Return a uniform explanation contract with every execution capability false."
+      },
       "PersonalInvestmentEventRequest": {
         "properties": {
           "idempotency_key": {
@@ -9488,11 +12399,10 @@
           "entry_type": {
             "type": "string",
             "enum": [
-              "buy_reason",
-              "sell_reason",
-              "observation",
-              "review",
-              "lesson"
+              "OBSERVE",
+              "DECISION",
+              "REVIEW",
+              "LESSON"
             ],
             "title": "Entry Type"
           },
@@ -9531,11 +12441,145 @@
             "minLength": 1,
             "title": "Title"
           },
-          "content": {
+          "reason": {
             "type": "string",
             "maxLength": 4000,
             "minLength": 1,
-            "title": "Content"
+            "title": "Reason"
+          },
+          "user_text": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "User Text"
+          },
+          "ai_summary": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ai Summary"
+          },
+          "expected_horizon": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Horizon"
+          },
+          "expected_condition": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Condition"
+          },
+          "invalid_condition": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invalid Condition"
+          },
+          "risk_notes": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Risk Notes"
+          },
+          "related_run_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 240
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Related Run Id"
+          },
+          "related_portfolio_snapshot_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 240
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Related Portfolio Snapshot Id"
+          },
+          "related_trade_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 240
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Related Trade Id"
+          },
+          "review_cycle": {
+            "type": "string",
+            "enum": [
+              "NONE",
+              "T5",
+              "T20",
+              "CUSTOM"
+            ],
+            "title": "Review Cycle",
+            "default": "NONE"
+          },
+          "custom_review_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Review Date"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "USER",
+              "AI_SAVED"
+            ],
+            "title": "Source",
+            "default": "USER"
           },
           "outcome": {
             "anyOf": [
@@ -9576,7 +12620,8 @@
           "entry_type",
           "trade_date",
           "title",
-          "content"
+          "reason",
+          "user_text"
         ],
         "title": "PersonalJournalCreateRequest",
         "description": "Create one idempotent investment-process journal entry."
@@ -9602,7 +12647,7 @@
             ],
             "title": "Title"
           },
-          "content": {
+          "reason": {
             "anyOf": [
               {
                 "type": "string",
@@ -9613,7 +12658,97 @@
                 "type": "null"
               }
             ],
-            "title": "Content"
+            "title": "Reason"
+          },
+          "user_text": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Text"
+          },
+          "expected_horizon": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Horizon"
+          },
+          "expected_condition": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Condition"
+          },
+          "invalid_condition": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invalid Condition"
+          },
+          "risk_notes": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Risk Notes"
+          },
+          "review_due_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Due At"
+          },
+          "review_status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "NOT_DUE",
+                  "DUE",
+                  "IN_REVIEW",
+                  "DONE"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Status"
           },
           "outcome": {
             "anyOf": [
@@ -9712,7 +12847,7 @@
         "properties": {
           "service_version": {
             "type": "string",
-            "const": "personal-investment-os-v1.0.0",
+            "const": "personal-investment-os-v1.1.0",
             "title": "Service Version"
           },
           "generated_at": {
@@ -9788,6 +12923,27 @@
             },
             "type": "array",
             "title": "Journals"
+          },
+          "reviews": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Reviews"
+          },
+          "reminders": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Reminders"
+          },
+          "review_center": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Review Center"
           },
           "knowledge": {
             "items": {
@@ -9885,6 +13041,9 @@
           "quant_research",
           "events",
           "journals",
+          "reviews",
+          "reminders",
+          "review_center",
           "knowledge",
           "reports",
           "counts",
@@ -10533,16 +13692,137 @@
         "title": "WorkbenchAvailability",
         "description": "Describe one data source without conflating unavailable states."
       },
+      "WorkbenchNextSessionPlan": {
+        "properties": {
+          "scope": {
+            "type": "string",
+            "const": "all_actual_positions",
+            "title": "Scope"
+          },
+          "position_count": {
+            "type": "integer",
+            "title": "Position Count"
+          },
+          "position_count_limit_enabled": {
+            "type": "boolean",
+            "title": "Position Count Limit Enabled"
+          },
+          "max_positions": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Positions"
+          },
+          "positions": {
+            "items": {
+              "$ref": "#/components/schemas/WorkbenchNextSessionPosition"
+            },
+            "type": "array",
+            "title": "Positions"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "scope",
+          "position_count",
+          "position_count_limit_enabled",
+          "max_positions",
+          "positions",
+          "message"
+        ],
+        "title": "WorkbenchNextSessionPlan",
+        "description": "Cover all actual paper positions without a display-count truncation."
+      },
+      "WorkbenchNextSessionPosition": {
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "title": "Symbol"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "quantity": {
+            "type": "integer",
+            "title": "Quantity"
+          },
+          "available_quantity": {
+            "type": "integer",
+            "title": "Available Quantity"
+          },
+          "frozen_quantity": {
+            "type": "integer",
+            "title": "Frozen Quantity"
+          },
+          "sellable_quantity": {
+            "type": "integer",
+            "title": "Sellable Quantity"
+          },
+          "pending_exit": {
+            "type": "boolean",
+            "title": "Pending Exit"
+          },
+          "next_session_action": {
+            "type": "string",
+            "enum": [
+              "PRIORITY_EXIT",
+              "RELEASE_T1_AND_REVIEW",
+              "HOLD_AND_REVIEW"
+            ],
+            "title": "Next Session Action"
+          }
+        },
+        "type": "object",
+        "required": [
+          "symbol",
+          "name",
+          "quantity",
+          "available_quantity",
+          "frozen_quantity",
+          "sellable_quantity",
+          "pending_exit",
+          "next_session_action"
+        ],
+        "title": "WorkbenchNextSessionPosition",
+        "description": "Expose one actual holding in the next-session paper review plan."
+      },
       "WorkbenchResponse": {
         "properties": {
           "version": {
             "type": "string",
-            "const": "1.0.0",
+            "const": "1.1.0",
             "title": "Version"
           },
           "generated_at": {
             "type": "string",
             "title": "Generated At"
+          },
+          "position_as_of_trade_date": {
+            "type": "string",
+            "title": "Position As Of Trade Date"
+          },
+          "position_refresh_seconds": {
+            "type": "integer",
+            "const": 15,
+            "title": "Position Refresh Seconds"
+          },
+          "settlement_rule": {
+            "type": "string",
+            "const": "A_SHARE_T_PLUS_1",
+            "title": "Settlement Rule"
+          },
+          "next_session_plan": {
+            "$ref": "#/components/schemas/WorkbenchNextSessionPlan"
           },
           "mode": {
             "type": "string",
@@ -10559,6 +13839,45 @@
               }
             ],
             "title": "Source Nav Date"
+          },
+          "valuation_observed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valuation Observed At"
+          },
+          "valuation_trade_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valuation Trade Date"
+          },
+          "nav_snapshot_state": {
+            "type": "string",
+            "enum": [
+              "NOT_REQUIRED",
+              "PERSISTED_CURRENT",
+              "SKIPPED_STALE",
+              "SKIPPED_INCOMPLETE",
+              "SKIPPED_DATE_MISMATCH",
+              "SKIPPED_UNTRUSTED",
+              "PERSISTENCE_FAILED"
+            ],
+            "title": "Nav Snapshot State"
+          },
+          "nav_snapshot_message": {
+            "type": "string",
+            "title": "Nav Snapshot Message"
           },
           "account": {
             "$ref": "#/components/schemas/PaperReviewAccount"
@@ -10652,8 +13971,16 @@
         "required": [
           "version",
           "generated_at",
+          "position_as_of_trade_date",
+          "position_refresh_seconds",
+          "settlement_rule",
+          "next_session_plan",
           "mode",
           "source_nav_date",
+          "valuation_observed_at",
+          "valuation_trade_date",
+          "nav_snapshot_state",
+          "nav_snapshot_message",
           "account",
           "asset_valuation",
           "positions",

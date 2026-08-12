@@ -1,0 +1,5 @@
+risk:
+  configuration_owner: portfolio_risk_center
+  mutable_by_engineering_center: false
+  live_order_creation_allowed: false
+  health_checks_may_change_limits: false

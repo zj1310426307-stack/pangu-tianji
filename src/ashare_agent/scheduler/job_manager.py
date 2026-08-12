@@ -49,6 +49,7 @@ class JobManager:
         registry: TaskRegistry | None = None,
         now_provider: Callable[[], datetime] | None = None,
         trading_day_provider: Callable[[date], bool] | None = None,
+        observability_jobs: Any | None = None,
     ) -> None:
         """Bind an operating service to its durable audit and schedule registry."""
         self.service = service
@@ -64,6 +65,9 @@ class JobManager:
         self._trading_day_provider = trading_day_provider or (
             lambda selected: selected.weekday() < 5
         )
+        # Optional, fail-open telemetry sink. It records the scheduler outcome
+        # but never owns report generation, retries or task state.
+        self._observability_jobs = observability_jobs
 
     def run(
         self,
@@ -99,11 +103,21 @@ class JobManager:
                 force_requested=force,
             )
 
+        observed_job = self._begin_observation(
+            definition.job_name,
+            scheduled_iso,
+            trigger=trigger,
+            task_id=str(task.get("task_id") or ""),
+        )
+
         if trigger == "scheduler" and not self._is_trading_day(slot.date()):
             task = self.report_center.finish_task(
                 task["task_id"],
                 status="skipped",
                 error_message="非交易日，投资运营任务已安全跳过",
+            )
+            self._finish_observation(
+                observed_job, "BLOCKED", evidence={"reason": "non_trading_day"}
             )
             return self._result(
                 state="skipped",
@@ -125,6 +139,9 @@ class JobManager:
                 task = self.report_center.finish_task(
                     task["task_id"], status="skipped", error_message=reason
                 )
+                self._finish_observation(
+                    observed_job, "BLOCKED", evidence={"reason": reason}
+                )
                 return self._result(
                     state="skipped",
                     task=task,
@@ -139,6 +156,11 @@ class JobManager:
             task = self.report_center.finish_task(
                 task["task_id"], status="succeeded", report_id=report_id
             )
+            self._finish_observation(
+                observed_job,
+                "SUCCEEDED",
+                evidence={"task_id": task.get("task_id"), "report_id": report_id},
+            )
             return self._result(
                 state="succeeded",
                 task=task,
@@ -147,6 +169,12 @@ class JobManager:
             )
         except Exception as exc:
             safe_error = self._safe_error(exc)
+            self._finish_observation(
+                observed_job,
+                "FAILED",
+                error_code=type(exc).__name__,
+                error_message=safe_error,
+            )
             try:
                 self.report_center.finish_task(
                     task["task_id"], status="failed", error_message=safe_error
@@ -156,6 +184,53 @@ class JobManager:
                 # itself is unavailable. No automatic retry is started here.
                 pass
             raise
+
+    def _begin_observation(
+        self,
+        job_name: str,
+        scheduled_for: str,
+        *,
+        trigger: str,
+        task_id: str,
+    ) -> str | None:
+        """Start optional telemetry without making it a scheduler dependency."""
+        if self._observability_jobs is None:
+            return None
+        try:
+            job = self._observability_jobs.create(
+                f"daily_os.{job_name}",
+                f"daily-os:{job_name}:{scheduled_for}",
+                scheduled_for=scheduled_for,
+                evidence={"trigger": trigger, "operating_task_id": task_id},
+            )
+            if str(job.get("status")) == "CREATED":
+                job = self._observability_jobs.transition(job["job_id"], "RUNNING")
+            return str(job["job_id"])
+        except Exception:
+            return None
+
+    def _finish_observation(
+        self,
+        job_id: str | None,
+        status: str,
+        *,
+        evidence: Mapping[str, Any] | None = None,
+        error_code: str | None = None,
+        error_message: str | None = None,
+    ) -> None:
+        """Finish optional telemetry; failure never changes the operating job."""
+        if self._observability_jobs is None or not job_id:
+            return
+        try:
+            self._observability_jobs.transition(
+                job_id,
+                status,
+                evidence=dict(evidence or {}),
+                error_code=error_code,
+                error_message=error_message,
+            )
+        except Exception:
+            return
 
     def run_due(self, now: datetime | None = None) -> dict[str, Any]:
         """Run each due registry slot serially and keep failures isolated."""

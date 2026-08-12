@@ -1,6 +1,59 @@
-# 盘古·天机 / Pangu V3
+# 盘古·天机 / Pangu V3.2
 
 盘古·天机是本地运行的 A 股研究、数据治理与模拟交易系统。同花顺金融数据 API 提供沪深主板代码表、收盘快照、日线和财务指标；本地 MockBroker 负责跨日模拟账本、自动调仓和用户确认的模拟买卖。系统没有 SuperMind、QMT、PTrade 或真实证券下单接口。
+
+## PANGU-V3.2-004 Workbench Valuation / NAV Semantics
+
+“模拟盘实际持仓”现在以 `valuation_observed_at` 显示当前估值时间，不再把历史 `source_nav_date` 标成当前行情日期。Workbench `1.1.0` 同时返回当前估值观察时间、估值交易日、最近持久化净值日和 `nav_snapshot_state`，前端只展示服务端状态，不自行推导资产或日期语义。
+
+Workbench 仅在行情快照新鲜、覆盖全部实际持仓、观察日等于工作台交易日且来源为可信同花顺持仓快照时，复用 `PaperPortfolio.mark_to_market()` 更新当日 `paper_nav`。陈旧、不完整、跨日或未信任快照只用于明确标记的只读估值，不会覆盖持久化净值；写入失败会保留已成功的当前估值并返回 `PERSISTENCE_FAILED` 告警。OpenAPI 与生成客户端仍为145个操作。
+
+## PANGU-V3.2-003 Investment Journal、Review & Realtime Paper Account
+
+投资复盘已形成“记录理由 → 到期复盘 → 用户确认 → 经验留存”的同页闭环。Journal 固定区分 `OBSERVE / DECISION / REVIEW / LESSON`，支持 `T+5 / T+20 / 自定义日期`；复盘草稿只整理已保存的研究、风险、退出和模拟账户事实，用户确认前不落经验。提醒仅为站内提醒，不能创建订单或调用模型。
+
+模拟账户以 `PaperPortfolio / MockBroker` 为唯一持仓事实源。`max_positions=0` 表示不设置持仓只数上限，次日检查覆盖全部实际持仓，并合并当日正式研究目标；现金、单股15%、总仓位60%、整手、T+1、冻结股份、涨跌停、回撤和 Kill Switch 继续生效。买入当日可卖为0，下一交易日读取账户时自动释放为可卖；前端不自行推导数量。
+
+桌面端现在由11条独立通道每15秒轮询系统、研究、账户、持仓复盘、投资运营、驾驶舱、个人OS、日志复盘、数据、策略进化、工程与可观测状态；账户成交/撤单/撮合后会立即失效驾驶舱缓存并同步所有账户消费模块。移动端前台每15秒同步当前页。这里的“实时”是同花顺HTTP轮询快照，不是逐笔行情或券商账户推送。
+
+本阶段最终验证为 `332 passed, 1 warning`，OpenAPI 与生成客户端同步为145个操作；唯一warning是项目既有的Starlette TestClient/httpx弃用提示。详细审计见项目交付物《PANGU-V3.2-003 Investment Journal Review Reminder报告.md》。
+
+## PANGU-V3.2-002 Personal AI Investment Assistant
+
+桌面日常主导航已收敛为六项：`首页、AI助手、股票研究、我的持仓、投资复盘、设置`。专业AI报告、策略实验室、AI量化研究、数据中心、策略进化、工程健康、可观测、个人OS与运营中心仍完整保留，从设置页高级工具进入。
+
+AI助手只支持今日关注、组合风险、个股关注理由、组合适配和行为复盘五类固定问题。唯一接口为 `POST /api/v1/assistant/query`；没有正式收盘run时不调用模型，模型文本出现交易指令时由服务端过滤。所有回答均附Evidence引用并固定 `can_trade=false`、`can_create_orders=false`、`can_launch_experiment=false`、`can_auto_remediate=false`。合同与使用边界见 `docs/personal_ai_investment_assistant.md`。
+
+## PANGU-V3.2-001 Investment Dashboard
+
+桌面首页现为“投资驾驶舱”：通过单一 `GET /api/v1/dashboard/overview` 在15秒快照内统一展示研究池市场状态、ValuationService资产、Portfolio Risk风险、证据型AI建议、全部已有评分候选、模拟持仓健康与今日任务。首页不再由浏览器拼接多接口，且不计算资产、PnL、仓位或回撤。
+
+AI卡只读取与当前正式 `run_id` 匹配且含Evidence引用的已发布Copilot报告；没有Market Regime或历史持仓变化证据时明确显示不可用。刷新首页不会生成AI报告、修改策略/风控/组合或创建任何订单。架构和降级合同见 `docs/investment_dashboard.md`。
+
+## PANGU-V3.1-001 Engineering Stabilization
+
+V3.1 新增独立 `src/pangu/` 工程基础设施层，统一系统/策略/因子/Schema/AI 版本清单、分层配置、JSON 结构化日志、工程事件、四维健康检查和带 SHA-256 清单的本地备份。旧 `config/settings.yaml` 保持业务兼容；新配置分为 `base/strategy/risk/ai/scheduler/development/production.yaml`，两种环境都强制关闭实盘与真实券商。
+
+网页新增 `09 工程健康`，只读展示版本、配置指纹、数据/数据库/AI/策略健康、备份与工程事件。显式“运行健康检查”和“创建本地备份”受既有本机写保护，且在 API、服务和数据库三层固定 `can_trade=false`、`can_create_orders=false`。完整架构见 `docs/engineering_stabilization.md`。
+
+```powershell
+.venv\Scripts\python.exe engineering_ops.py status
+.venv\Scripts\python.exe engineering_ops.py health
+.venv\Scripts\python.exe engineering_ops.py backup
+.venv\Scripts\python.exe scripts\engineering_check.py
+```
+
+## PANGU-V3.1-002 Observability Platform
+
+在工程健康快照之上新增连续运行证据：Telemetry Context、Metrics、Trace/Span、Job Run、SLO、告警、人工Incident和先计划后执行的Retention。网页新增“10 可观测中心”，展示由服务端聚合的p50/p95/p99、SLO证据、活动告警、Job时间线和Trace关联。
+
+Observability不能修改策略、因子、组合、风控或订单，也不能自动修复/重跑任务。AI未启用为`NOT_APPLICABLE`，样本不足为`INSUFFICIENT_DATA`。详细Schema、指标字典、告警与SLO目录见 `docs/observability_platform.md`。
+
+```powershell
+.venv\Scripts\python.exe engineering_ops.py observability
+.venv\Scripts\python.exe engineering_ops.py observe
+.venv\Scripts\python.exe engineering_ops.py alerts
+```
 
 ## PANGU‑V3‑001 Data Intelligence Platform
 
@@ -48,11 +101,11 @@ Pangu V3 首阶段新增 Data Intelligence Platform：对每个不可变 Data Ce
 
 ## 独立实时更新引擎
 
-- 页面默认每15秒同步系统、研究/账户、持仓复盘、投资运营和数据智能状态，可在10、15、30或60秒之间调整。五条状态通道互不阻塞，不再由一个总请求串行等待。
+- 页面默认每15秒同步系统、研究/账户、持仓复盘、投资运营、驾驶舱、个人OS、日志复盘、数据智能、策略进化、工程健康和可观测状态，可在10、15、30或60秒之间调整。11条状态通道互不阻塞，不再由一个总请求串行等待。
 - 进入“选股与模拟”后，所选股票按配置的5秒周期读取同花顺最新快照；离开该页、切到浏览器后台或暂停实时同步后停止轮询。
 - 选股页可见且处于交易时段时，活动限价单每10秒执行一次显式快照撮合；Windows监控任务每5分钟也处理活动委托，页面关闭后仍可继续低频模拟撮合。
 - 全市场候选榜可在交易时段每5、10或15分钟自动重算。自动重算只写入 `preview.json`，不覆盖收盘正式计划、不执行模拟买卖。
-- 实时更新中心分别显示系统、研究、账户、复盘、行情和候选重算的最新状态；每个模块可单独手动更新，单个模块失败不会伪装成整体成功，也不会延迟其他模块。
+- 实时更新中心分别显示各业务模块、所选行情和候选重算的最新状态；每个模块可单独手动更新，单个模块失败不会伪装成整体成功，也不会延迟其他模块。
 - 每条通道都有独立的进行中锁、超时、最近成功时间和指数退避重试；成功后恢复正常周期，失败时最长退避到120秒。超过各自新鲜度阈值后，页面会把旧数据标为“数据可能已过期”。
 - 浏览器离线时保留最后一次成功快照并暂停外部行情/候选请求；网络恢复后优先补一次到期通道。重复点击只复用当前请求，不会叠加同一模块的并发调用。
 - DeepSeek只自动同步连接状态，不自动调用收费模型；所有 Copilot 报告仍需用户明确点击生成。
@@ -115,6 +168,9 @@ python -m venv .venv
 - `GET /api/v1/data-intelligence/health` 与 `GET /api/v1/data-intelligence/incidents`：读取健康历史和数据事件。
 - `POST /api/v1/data-intelligence/incidents/{incident_id}/acknowledge`：标记事件已查看；不能解除研究发布门禁。
 - `GET /api/v1/data-intelligence/catalog` 与 `GET /api/v1/data-intelligence/lineage/{run_id}`：读取数据资产目录和研究血缘。
+- `GET /api/v1/engineering`：读取版本、配置指纹、最近健康、备份与结构化事件。
+- `POST /api/v1/engineering/health/run`：显式执行四维只读工程健康检查。
+- `POST /api/v1/engineering/backups`：创建本地、非覆盖、带 SHA-256 清单的工程证据备份。
 - `GET /docs`：完整 OpenAPI。
 
 桌面写操作继续受本机请求头与 Origin 保护；移动端只开放独立的 JWT 受限接口，不能调用任何桌面交易或配置写操作。两个网页都只使用由 OpenAPI 生成的 `web/generated/client.js`。
@@ -129,7 +185,7 @@ node --check web\mobile\mobile.js
 node --check web\generated\client.js
 ```
 
-PANGU‑V3‑001 当前全量结果为 `270 passed, 1 warning`；唯一warning是既有 Starlette/httpx 测试组件弃用提示。OpenAPI 已同步为 103 个操作，22 个受保护核心文件哈希差异为 0。
+PANGU‑V3.1‑001 当前全量结果为 `291 passed, 1 warning`；唯一 warning 是既有 Starlette/httpx 测试组件弃用提示。OpenAPI 已同步为 121 个操作，28 个受保护核心文件哈希差异为 0。工程健康实机检查为 `DEGRADED 84/100`：11 个 SQLite 数据库均通过 `quick_check`，但 Data Center 尚无正式 latest 研究快照，DeepSeek 已配置但本次只读状态未做联网连接测试。
 
 详细状态边界见 `docs/architecture_v10.md`。本软件仅供研究和工程验证，不承诺盈利，不构成投资建议。
 

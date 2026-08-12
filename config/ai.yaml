@@ -1,0 +1,8 @@
+ai:
+  provider: deepseek
+  api_key_env: DEEPSEEK_API_KEY
+  optional: true
+  health_timeout_seconds: 3
+  may_create_orders: false
+  may_modify_strategy: false
+  may_modify_risk: false

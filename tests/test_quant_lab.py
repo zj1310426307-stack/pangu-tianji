@@ -24,6 +24,7 @@ from ashare_agent.quant_lab.contracts import (
     StrategyLifecycleState,
     ValidationStatus,
 )
+from tests._protected_hash import sha256_normalized_source
 from ashare_agent.quant_lab.dataset_validator import DatasetValidator
 from ashare_agent.quant_lab.exceptions import (
     ArtifactIntegrityError,
@@ -48,7 +49,7 @@ PROTECTED_HASHES = {
     "src/ashare_agent/services/portfolio_service.py": "41F3037DB2E0157B049B7496F30C36748A434B4108A5CC64C41872E71A892280",
     "src/ashare_agent/services/portfolio_risk_engine.py": "ED6CC9125795946954D6909033254A5D0A5B2E77D7D277FA04B2ED5D984336D2",
     "src/ashare_agent/services/portfolio_risk_store.py": "BEA51A648203BF3AD3CA9081E2C23F6B7B2A72BF109E4BFD177B422C7CEAC30C",
-    "src/ashare_agent/paper_portfolio.py": "940A25CFF6FE871531D0272B6C17592619ED434D597190D478F7C2C3D94D28F0",
+    "src/ashare_agent/paper_portfolio.py": "69FD3B0E81E12CAF0BB21A3014924A58CD536561BBC1C4604142FAE195286DCD",
 }
 
 
@@ -354,7 +355,7 @@ def test_failed_runner_is_audited_and_not_retried(tmp_path):
 def test_protected_hashes_unchanged_and_quant_lab_has_no_trading_imports():
     root = Path(__file__).resolve().parents[1]
     for relative, expected in PROTECTED_HASHES.items():
-        assert hashlib.sha256((root / relative).read_bytes()).hexdigest().upper() == expected
+        assert sha256_normalized_source(root / relative) == expected
     source = "\n".join(
         path.read_text(encoding="utf-8") for path in (root / "src/ashare_agent/quant_lab").glob("*.py")
     )

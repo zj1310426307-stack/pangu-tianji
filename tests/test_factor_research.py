@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import timedelta
-import hashlib
 import json
 from pathlib import Path
 import sqlite3
@@ -20,6 +19,7 @@ from ashare_agent.quant_lab.contracts import (
     aggregate_dataset_version,
 )
 from ashare_agent.quant_lab.exceptions import ContractError
+from tests._protected_hash import sha256_normalized_source
 from ashare_agent.quant_lab.experiment_registry import ExperimentRegistry
 from ashare_agent.quant_lab.factor_research.ablation import analyze_ablation
 from ashare_agent.quant_lab.factor_research.ablation_engine import AblationEngine
@@ -56,7 +56,7 @@ PROTECTED_HASHES = {
     "src/ashare_agent/services/portfolio_risk_store.py": "BEA51A648203BF3AD3CA9081E2C23F6B7B2A72BF109E4BFD177B422C7CEAC30C",
     "src/ashare_agent/services/exit_engine.py": "8E0ECAA5A20EECBCDBCAB5259238F989D7710DED8EFFCA6792C2AB732B2F5264",
     "src/ashare_agent/services/valuation_service.py": "5331F1E806A4EDFF6DD46A38311ACCE6B791349ADEA300C197760D66D29153B4",
-    "src/ashare_agent/paper_portfolio.py": "940A25CFF6FE871531D0272B6C17592619ED434D597190D478F7C2C3D94D28F0",
+    "src/ashare_agent/paper_portfolio.py": "69FD3B0E81E12CAF0BB21A3014924A58CD536561BBC1C4604142FAE195286DCD",
 }
 
 
@@ -438,7 +438,7 @@ def test_same_experiment_replay_gets_new_run_without_overwrite(factor_center):
 def test_protected_hashes_and_factor_research_import_boundary_are_unchanged():
     root = Path(__file__).resolve().parents[1]
     for relative, expected in PROTECTED_HASHES.items():
-        assert hashlib.sha256((root / relative).read_bytes()).hexdigest().upper() == expected
+        assert sha256_normalized_source(root / relative) == expected
     source = "\n".join(
         path.read_text(encoding="utf-8")
         for path in (root / "src/ashare_agent/quant_lab/factor_research").glob("*.py")

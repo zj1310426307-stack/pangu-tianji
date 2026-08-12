@@ -98,6 +98,14 @@ def test_complete_valid_config_loads(tmp_path: Path) -> None:
     assert config.raw["investment_profile"]["risk_level"] == "balanced"
 
 
+def test_zero_paper_max_positions_disables_only_the_position_count_cap(tmp_path: Path) -> None:
+    """Keep cash/exposure risk limits while allowing any number of holdings."""
+    raw = deepcopy(BASE_CONFIG)
+    raw["paper_account"]["max_positions"] = 0
+    config = load_config(write_full_config(tmp_path, raw))
+    assert config.raw["paper_account"]["max_positions"] == 0
+
+
 @pytest.mark.parametrize(
     ("field", "value"),
     [

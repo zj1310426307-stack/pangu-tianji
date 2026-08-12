@@ -1,0 +1,6 @@
+scheduler:
+  timezone: Asia/Shanghai
+  missed_jobs_backfilled: false
+  health_check_interval_minutes: 30
+  backup_time: "17:30"
+  backup_days: [1, 2, 3, 4, 5]

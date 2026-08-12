@@ -5,21 +5,19 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="description" content="盘古·天机全市场模拟交易与模拟持仓复盘工作台" />
   <title>盘古·天机｜今日总览</title>
-  <link rel="stylesheet" href="/styles.css?v=20260811-1" />
+  <link rel="stylesheet" href="/styles.css?v=20260812-3" />
 </head>
 <body>
   <a class="skip-link" href="#main-content">跳到主要内容</a>
   <header class="topbar">
     <div class="brand"><span class="brand-mark" aria-hidden="true">机</span><div><strong>盘古·天机</strong><small>Pangu V3 · 智能投资平台</small></div></div>
     <nav class="workspace-nav" aria-label="主要工作区" role="tablist">
-      <button class="workspace-tab active" type="button" role="tab" data-workspace="overview" aria-controls="workspace-overview" aria-selected="true"><span>01</span>今日</button>
-      <button class="workspace-tab" type="button" role="tab" data-workspace="market" aria-controls="workspace-market" aria-selected="false"><span>02</span>选股与模拟</button>
-      <button class="workspace-tab" type="button" role="tab" data-workspace="etf" aria-controls="workspace-etf" aria-selected="false"><span>03</span>持仓复盘</button>
-      <button class="workspace-tab" type="button" role="tab" data-workspace="assistant" aria-controls="workspace-assistant" aria-selected="false"><span>04</span>天机助手</button>
-      <button class="workspace-tab" type="button" role="tab" data-workspace="strategy" aria-controls="workspace-strategy" aria-selected="false"><span>05</span>策略实验室</button>
-      <button class="workspace-tab" type="button" role="tab" data-workspace="quantai" aria-controls="workspace-quantai" aria-selected="false"><span>06</span>AI研究</button>
-      <button class="workspace-tab" type="button" role="tab" data-workspace="dataintel" aria-controls="workspace-dataintel" aria-selected="false"><span>07</span>数据中心</button>
-      <button class="workspace-tab" type="button" role="tab" data-workspace="evolution" aria-controls="workspace-evolution" aria-selected="false"><span>08</span>策略进化</button>
+      <button class="workspace-tab active" type="button" role="tab" data-workspace="dashboard" aria-controls="workspace-dashboard" aria-selected="true"><span>01</span>首页</button>
+      <button class="workspace-tab" type="button" role="tab" data-workspace="assistant" aria-controls="workspace-assistant" aria-selected="false"><span>02</span>AI助手</button>
+      <button class="workspace-tab" type="button" role="tab" data-workspace="market" aria-controls="workspace-market" aria-selected="false"><span>03</span>股票研究</button>
+      <button class="workspace-tab" type="button" role="tab" data-workspace="etf" aria-controls="workspace-etf" aria-selected="false"><span>04</span>我的持仓</button>
+      <button class="workspace-tab" type="button" role="tab" data-workspace="review" aria-controls="workspace-review" aria-selected="false"><span>05</span>投资复盘</button>
+      <button class="workspace-tab" type="button" role="tab" data-workspace="settings" aria-controls="workspace-settings" aria-selected="false"><span>06</span>设置</button>
     </nav>
     <div class="top-actions"><span id="lastSync">等待同步</span><a class="button button-ghost button-compact" href="/mobile/" target="_blank" rel="noopener">移动端</a><button id="notificationJumpButton" class="button notification-button button-compact" type="button" aria-label="查看投资通知"><span>通知</span><strong id="notificationTopCount">0</strong></button><button id="liveSyncQuickButton" class="button button-live button-compact" type="button" aria-pressed="true"><span class="live-dot" aria-hidden="true"></span><span id="liveSyncQuickLabel">实时同步</span></button><button id="killButton" class="button button-danger button-compact" type="button">安全停止</button><button id="refreshButton" class="button button-ghost button-compact" type="button">刷新</button></div>
   </header>
@@ -59,7 +57,33 @@
       </div>
     </details>
 
-    <section id="workspace-personalos" class="workspace-view active personal-os-workspace" data-workspace-view="personalos" role="tabpanel">
+    <section id="workspace-dashboard" class="workspace-view active investment-dashboard-workspace" data-workspace-view="dashboard" role="tabpanel">
+      <div class="workspace-hero investment-dashboard-hero">
+        <div><p class="kicker">DAILY INVESTMENT COCKPIT</p><h1>盘古投资驾驶舱</h1><p>一次回答市场、资产、风险、关注股票、AI建议与今日任务。所有数字和结论均来自后端证据，不在浏览器计算。</p></div>
+        <div class="investment-dashboard-actions"><span id="investmentDashboardState" class="badge badge-muted">等待聚合快照</span><span class="badge badge-success">模拟账户</span><span class="badge badge-muted">can_trade=false</span><button id="investmentDashboardRefreshButton" class="button button-primary button-compact" type="button">刷新驾驶舱</button></div>
+      </div>
+
+      <section class="dashboard-decision-grid section-gap" aria-label="每日投资状态">
+        <article id="dashboardMarketCard" class="panel dashboard-card dashboard-market-card"></article>
+        <article id="dashboardAssetCard" class="panel dashboard-card dashboard-asset-card"></article>
+        <article id="dashboardRiskCard" class="panel dashboard-card dashboard-risk-card"></article>
+        <article id="dashboardAICard" class="panel dashboard-card dashboard-ai-card"></article>
+      </section>
+
+      <section id="dashboardStockCard" class="panel dashboard-wide-card section-gap" aria-label="今日关注股票"></section>
+      <section class="dashboard-lower-grid section-gap">
+        <article id="dashboardHoldingHealthCard" class="panel dashboard-wide-card" aria-label="持仓健康"></article>
+        <article id="dashboardTaskCard" class="panel dashboard-wide-card" aria-label="今日投资任务"></article>
+      </section>
+      <section class="panel dashboard-evidence-strip section-gap">
+        <div><span>快照</span><code id="investmentDashboardSnapshot">—</code></div>
+        <div><span>研究</span><code id="investmentDashboardRun">—</code></div>
+        <div><span>证据缺口</span><strong id="investmentDashboardGaps">等待同步</strong></div>
+      </section>
+      <section class="panel personal-os-boundary section-gap"><strong>安全边界</strong><p>驾驶舱只聚合 ValuationService、Portfolio Risk Center、Research Pipeline、AI Copilot 与 Personal OS 已存在的结果。刷新不会生成AI报告、重算评分、修改策略/仓位/风控或创建任何订单。</p></section>
+    </section>
+
+    <section id="workspace-personalos" class="workspace-view personal-os-workspace" data-workspace-view="personalos" data-workspace="personalos" role="tabpanel" hidden>
       <div class="workspace-hero personal-os-hero">
         <div><p class="kicker">PERSONAL INVESTMENT OPERATING SYSTEM</p><h1>我的投资操作系统</h1><p>把研究、模拟决策、跟踪、复盘和学习连成可追溯闭环。资产数字只来自 ValuationService，个人评分只衡量过程，不评价盈利能力。</p></div>
         <div class="personal-os-hero-actions"><span id="personalOsState" class="badge badge-muted">等待个人操作系统</span><span class="badge badge-success">模拟账户</span><span class="badge badge-muted">can_trade=false</span><button id="personalOsRefreshButton" class="button button-primary button-compact" type="button">刷新总控</button></div>
@@ -106,7 +130,7 @@
       </section>
 
       <section class="personal-os-three-grid section-gap">
-        <article class="panel"><div class="panel-heading compact"><div><p class="kicker">INVESTMENT JOURNAL</p><h2>投资日志</h2></div></div><form id="personalJournalForm" class="personal-stack-form"><div><select id="personalJournalType"><option value="review">复盘</option><option value="lesson">教训</option><option value="observation">观察</option><option value="buy_reason">买入理由</option><option value="sell_reason">卖出理由</option></select><input id="personalJournalSymbol" type="text" maxlength="9" placeholder="股票代码（可选）" /></div><input id="personalJournalTitle" type="text" maxlength="120" placeholder="标题" required /><textarea id="personalJournalContent" rows="3" maxlength="4000" placeholder="决策理由、结果或复盘内容" required></textarea><button class="button button-ghost" type="submit">保存日志</button></form><div id="personalJournalList" class="personal-record-list"></div></article>
+        <article class="panel"><div class="panel-heading compact"><div><p class="kicker">INVESTMENT JOURNAL</p><h2>投资日志</h2></div></div><form id="personalJournalForm" class="personal-stack-form"><div><select id="personalJournalType"><option value="OBSERVE">观察</option><option value="DECISION">投资理由</option><option value="REVIEW">复盘结论</option><option value="LESSON">确认经验</option></select><input id="personalJournalSymbol" type="text" maxlength="9" placeholder="股票代码（可选）" /></div><input id="personalJournalTitle" type="text" maxlength="120" placeholder="标题" required /><textarea id="personalJournalContent" rows="3" maxlength="4000" placeholder="写下你的原话；AI摘要会另字段保存" required></textarea><button class="button button-ghost" type="submit">保存日志</button></form><div id="personalJournalList" class="personal-record-list"></div></article>
         <article class="panel"><div class="panel-heading compact"><div><p class="kicker">KNOWLEDGE BASE</p><h2>个人知识库</h2></div></div><form id="personalKnowledgeForm" class="personal-stack-form"><div><select id="personalKnowledgeCategory"><option value="personal_lesson">个人经验</option><option value="company">公司研究</option><option value="market">市场观察</option></select><input id="personalKnowledgeSubject" type="text" maxlength="120" placeholder="主题" required /></div><input id="personalKnowledgeTitle" type="text" maxlength="120" placeholder="知识标题" required /><textarea id="personalKnowledgeContent" rows="3" maxlength="4000" placeholder="结论、依据与适用边界" required></textarea><button class="button button-ghost" type="submit">加入知识库</button></form><div id="personalKnowledgeList" class="personal-record-list"></div></article>
         <article class="panel"><div class="panel-heading compact"><div><p class="kicker">REVIEW CENTER</p><h2>委员会与月度复盘</h2><p>汇总现有报告，不重写原始证据。</p></div></div><div class="personal-report-actions"><button id="personalWeeklyButton" class="button button-ghost" type="button">生成周委员会</button><button id="personalMonthlyButton" class="button button-ghost" type="button">生成月度复盘</button></div><div id="personalReportList" class="personal-record-list"></div></article>
       </section>
@@ -155,7 +179,7 @@
       <section class="panel data-intelligence-boundary section-gap"><strong>安全边界</strong><p>Data Intelligence 只能读取 Data Center、写入独立监控账本并阻断不健康的正式研究发布。它不能修改历史数据、策略、因子权重、交易逻辑或绕过门禁，也不能创建任何模拟或真实订单。</p></section>
     </section>
 
-    <section id="workspace-evolution" class="workspace-view strategy-evolution-workspace" data-workspace-view="evolution" role="tabpanel" hidden>
+    <section id="workspace-evolution" class="workspace-view strategy-evolution-workspace" data-workspace-view="evolution" data-workspace="evolution" role="tabpanel" hidden>
       <div class="workspace-hero strategy-evolution-hero">
         <div><p class="kicker">STRATEGY EVOLUTION ENGINE</p><h1>策略进化中心</h1><p>持续监控收益、风险、因子漂移、执行成本与市场适应性。这里只观察、比较和治理研究分支，不自动调参、不替换生产策略。</p></div>
         <div class="strategy-evolution-actions"><span id="evolutionState" class="badge badge-muted">等待策略证据</span><span class="badge badge-muted">人工生命周期</span><span class="badge badge-muted">can_modify_strategy=false</span><button id="evolutionRefreshButton" class="button button-ghost button-compact" type="button">刷新状态</button></div>
@@ -229,7 +253,69 @@
       <section class="panel strategy-evolution-boundary section-gap"><strong>安全边界</strong><p>PRODUCTION_CANDIDATE 仅表示“候选进入进一步人工评估”，绝不等于实盘。Strategy Evolution Engine 不能修改 ResearchPipeline、因子权重、组合、风控、OMS、模拟账户或真实账户，不能自动晋级或启动实验。</p></section>
     </section>
 
-    <section id="workspace-overview" class="workspace-view" data-workspace-view="overview" role="tabpanel" hidden>
+    <section id="workspace-engineering" class="workspace-view engineering-workspace" data-workspace-view="engineering" role="tabpanel" hidden>
+      <div class="workspace-hero engineering-hero">
+        <div><p class="kicker">ENGINEERING STABILIZATION</p><h1>工程健康中心</h1><p>统一查看系统版本、配置指纹、数据/数据库/AI/策略健康、结构化事件与本地备份。健康检查和备份均不进入投资决策链。</p></div>
+        <div class="engineering-actions"><span id="engineeringState" class="badge badge-muted">尚未检查</span><span class="badge badge-muted">can_trade=false</span><button id="engineeringHealthButton" class="button button-primary button-compact" type="button">运行健康检查</button><button id="engineeringBackupButton" class="button button-ghost button-compact" type="button">创建本地备份</button><button id="engineeringRefreshButton" class="button button-ghost button-compact" type="button">刷新</button></div>
+      </div>
+
+      <section class="engineering-headline" aria-label="工程健康摘要">
+        <article class="engineering-score-card"><span>工程健康分</span><strong id="engineeringScore">—</strong><small id="engineeringCheckedAt">等待首次检查</small></article>
+        <article><span>系统版本</span><strong id="engineeringSystemVersion">—</strong><small id="engineeringVersionHash">版本清单未加载</small></article>
+        <article><span>策略 / 因子合同</span><strong id="engineeringStrategyVersion">—</strong><small id="engineeringFactorVersion">—</small></article>
+        <article><span>配置环境</span><strong id="engineeringEnvironment">—</strong><small id="engineeringConfigHash">—</small></article>
+        <article><span>已验证备份</span><strong id="engineeringBackupCount">0</strong><small>只读源证据，不覆盖历史</small></article>
+      </section>
+
+      <section class="panel section-gap">
+        <div class="panel-heading compact"><div><p class="kicker">FOUR-DIMENSION HEALTH</p><h2>健康检查拆解</h2><p>数据30 · 数据库30 · AI20 · 策略20。缺失或失败不会重分配权重，也不会自动修复投资状态。</p></div></div>
+        <div id="engineeringComponentGrid" class="engineering-component-grid" aria-live="polite"></div>
+        <p id="engineeringComponentEmpty" class="empty-inline">尚未运行工程健康检查。</p>
+      </section>
+
+      <section class="engineering-main-grid section-gap">
+        <article class="panel">
+          <div class="panel-heading compact"><div><p class="kicker">VERIFIED BACKUPS</p><h2>备份审计</h2><p>SQLite 使用在线备份，配置与研究证据保存 SHA-256 清单；密钥与日志不进入备份。</p></div></div>
+          <div id="engineeringBackupList" class="engineering-audit-list"></div>
+          <p id="engineeringBackupEmpty" class="empty-inline">尚无备份记录。</p>
+        </article>
+        <article class="panel">
+          <div class="panel-heading compact"><div><p class="kicker">STRUCTURED EVENTS</p><h2>工程事件</h2><p>JSON 事件包含 trace_id、模块与事件名；敏感值在写入前脱敏。</p></div></div>
+          <div id="engineeringEventList" class="engineering-audit-list"></div>
+          <p id="engineeringEventEmpty" class="empty-inline">尚无工程事件。</p>
+        </article>
+      </section>
+
+      <section class="panel engineering-boundary section-gap"><strong>安全边界</strong><p>工程中心不能修改 ResearchPipeline、因子权重、组合、风控、模拟账户或真实账户；不能接触券商凭据或创建订单。备份仅复制已存在的本地证据，健康检查仅做只读校验。</p></section>
+    </section>
+
+    <section id="workspace-observability" class="workspace-view observability-workspace" data-workspace-view="observability" role="tabpanel" hidden>
+      <div class="workspace-hero observability-hero">
+        <div><p class="kicker">PANGU OBSERVABILITY · EVIDENCE OVER ASSUMPTION</p><h1>10 可观测中心</h1><p>连续追踪请求、作业、指标、SLO、告警和工程 Incident；只记录与关联，不自动修复、不重跑研究、不改变投资状态。</p></div>
+        <div class="observability-actions"><span id="observabilityState" class="badge badge-muted">等待观测</span><span class="badge badge-muted">can_auto_remediate=false</span><label class="select-control"><span>时间范围</span><select id="observabilityTimeRange"><option value="1">1小时</option><option value="24" selected>24小时</option><option value="168">7天</option><option value="720">30天</option></select></label><button id="observabilityEvaluateButton" class="button button-primary button-compact" type="button">采样并评估</button><button id="observabilityRefreshButton" class="button button-ghost button-compact" type="button">刷新</button></div>
+      </div>
+      <section class="observability-headline" aria-label="可观测摘要">
+        <article><span>Active Alerts</span><strong id="observabilityAlertCount">0</strong><small>只提示，不自动处置</small></article>
+        <article><span>SLO 状态</span><strong id="observabilitySloState">未评估</strong><small id="observabilitySloCoverage">等待证据</small></article>
+        <article><span>最近 Job</span><strong id="observabilityJobState">—</strong><small id="observabilityJobTime">尚无作业</small></article>
+        <article><span>API p95</span><strong id="observabilityApiP95">—</strong><small>由服务端聚合</small></article>
+        <article><span>Trace</span><strong id="observabilityTraceCount">0</strong><small>请求 / Job / Run 可关联</small></article>
+      </section>
+      <section class="observability-grid section-gap">
+        <article class="panel"><div class="section-heading"><div><p class="kicker">ACTIVE ALERTS</p><h2>告警与人工确认</h2></div></div><div id="observabilityAlertList" class="observability-list"></div><p id="observabilityAlertEmpty" class="empty-inline">当前没有活动告警。</p></article>
+        <article class="panel"><div class="section-heading"><div><p class="kicker">SLO / SLI</p><h2>服务目标</h2></div></div><div id="observabilitySloList" class="observability-list"></div><p id="observabilitySloEmpty" class="empty-inline">尚无SLO评估；样本不足不会显示健康。</p></article>
+        <article class="panel"><div class="section-heading"><div><p class="kicker">JOB TIMELINE</p><h2>作业运行历史</h2></div></div><div id="observabilityJobList" class="observability-list"></div><p id="observabilityJobEmpty" class="empty-inline">尚无Job运行记录。</p></article>
+        <article class="panel"><div class="section-heading"><div><p class="kicker">METRICS</p><h2>API与模块指标</h2></div></div><div id="observabilityMetricList" class="observability-list"></div><p id="observabilityMetricEmpty" class="empty-inline">尚无指标样本。</p></article>
+      </section>
+      <section class="panel section-gap"><div class="section-heading"><div><p class="kicker">TRACE EXPLORER</p><h2>链路检索</h2></div><label class="inline-search"><span class="sr-only">按ID检索Trace</span><input id="observabilityTraceQuery" type="search" maxlength="160" placeholder="trace_id / job_id / run_id" /></label></div><div id="observabilityTraceList" class="observability-trace-list"></div><p id="observabilityTraceEmpty" class="empty-inline">尚无Trace证据。</p></section>
+      <section class="observability-grid section-gap">
+        <article class="panel"><div class="section-heading"><div><p class="kicker">INCIDENTS</p><h2>事件时间线</h2></div></div><div id="observabilityIncidentList" class="observability-list"></div><p id="observabilityIncidentEmpty" class="empty-inline">尚无人工Incident。</p></article>
+        <article class="panel"><div class="section-heading"><div><p class="kicker">RETENTION</p><h2>保留与容量</h2></div><button id="observabilityRetentionPlanButton" class="button button-ghost button-compact" type="button">生成清理计划</button></div><div id="observabilityRetentionList" class="observability-list"></div><p id="observabilityRetentionEmpty" class="empty-inline">尚无Retention审计。</p></article>
+      </section>
+      <section class="panel observability-boundary section-gap"><strong>安全边界</strong><p>所有可观测合同固定 can_trade=false、can_create_orders=false、can_modify_strategy=false、can_modify_risk=false、can_auto_remediate=false。告警确认和Incident维护只改变工程审计状态。</p></section>
+    </section>
+
+    <section id="workspace-overview" class="workspace-view" data-workspace-view="overview" data-workspace="overview" role="tabpanel" hidden>
       <div class="workspace-hero compact-hero investment-os-hero">
         <div><p class="kicker">DAILY INVESTMENT OPERATING SYSTEM</p><h1>盘古投资驾驶舱</h1><p>每日主动汇总市场、组合、风险、报告和通知；所有结论只用于投资辅助，不创建任何订单。</p></div>
         <div class="investment-os-badges"><span id="investmentOsState" class="badge badge-muted">等待运营快照</span><span class="badge badge-success">本地 PAPER</span><span class="badge badge-muted">can_create_orders=false</span></div>
@@ -253,7 +339,7 @@
 
       <section class="headline-grid overview-metrics" aria-label="今日关键状态">
         <article><span>全市场研究日期</span><strong id="researchDate">暂无</strong><small id="marketCoverage">等待全市场采集</small></article>
-        <article><span>次日组合计划</span><strong id="targetCount">0</strong><small id="nextPlan">前8名进入，最多5只</small></article>
+        <article><span>次日组合计划</span><strong id="targetCount">0</strong><small id="nextPlan">全部持仓纳入；新增标的受资金与风险约束</small></article>
         <article><span>模拟账户权益</span><strong id="paperEquity">¥100,000.00</strong><small id="paperCash">现金 ¥100,000.00</small></article>
         <article><span>组合回撤</span><strong id="paperDrawdown">0.00%</strong><small id="automationState">自动模拟：等待数据</small></article>
         <article><span>模拟持仓</span><strong id="runtimeValue">0只</strong><small id="runtimeDetail">读取模拟账户</small></article>
@@ -409,9 +495,15 @@
 
     <section id="workspace-etf" class="workspace-view" data-workspace-view="etf" role="tabpanel" hidden>
       <div class="workspace-hero etf-hero">
-        <div><p class="kicker">PAPER PORTFOLIO REVIEW</p><h1>模拟持仓复盘</h1><p>只读取盘古·天机模拟盘实际买入的股票、订单、成交、费用和净值；固定 ETF 白名单不参与本页。</p></div>
+        <div><p class="kicker">MY PORTFOLIO</p><h1>我的持仓</h1><p>先看持仓、收益、研究评分、风险变化与退出证据；资产数字只使用后端 ValuationService，不在浏览器重新计算。</p></div>
         <span class="badge badge-info">实际模拟账本 · 非证券账户</span>
       </div>
+
+      <section class="panel simplified-holdings-panel">
+        <div class="panel-heading compact"><div><p class="kicker">POSITION SNAPSHOT</p><h2>当前持仓摘要</h2><p>历史风险证据不存在时明确显示“暂无历史序列”，不以当前值伪造变化。</p></div><span id="simpleHoldingState" class="badge badge-muted">等待估值</span></div>
+        <div id="simpleHoldingList" class="simple-holding-list" aria-live="polite"></div>
+        <p id="simpleHoldingEmpty" class="empty-inline">模拟账户当前没有持仓。</p>
+      </section>
 
       <section id="monitor" class="panel monitor-panel">
         <div class="panel-heading"><div><p class="kicker">ACTUAL PAPER POSITIONS</p><h2>模拟盘实际持仓</h2><p>空仓时不显示任何白名单股票；买入成交后自动进入本页复盘。</p></div><span id="sourceBadge" class="badge badge-muted">读取账本</span></div>
@@ -444,8 +536,39 @@
       </section>
     </section>
 
+    <section id="workspace-review" class="workspace-view" data-workspace-view="review" role="tabpanel" hidden>
+      <div class="workspace-hero review-hero"><div><p class="kicker">INVESTMENT REVIEW</p><h1>投资复盘</h1><p>把今日结果、计划偏差、纪律反馈和待复盘事项放在同一页；高级报告仍保留，但默认折叠。</p></div><span class="badge badge-muted">只读学习闭环</span></div>
+      <section class="review-simple-grid">
+        <article class="panel review-headline-card"><p class="kicker">TODAY</p><h2>今日</h2><div class="review-count-row"><div><strong id="reviewPendingCount">0</strong><span>待复盘</span></div><div><strong id="reviewTodayEntryCount">0</strong><span>今日记录</span></div><div><strong id="reviewReminderCount">0</strong><span>今日提醒</span></div></div><div id="reviewMostImportant" class="simple-review-content">等待复盘证据。</div></article>
+        <article class="panel review-quick-card"><p class="kicker">QUICK JOURNAL</p><h2>30秒记录理由</h2><form id="reviewQuickJournalForm" class="review-quick-form"><div><select id="reviewQuickType"><option value="OBSERVE">记录观察</option><option value="DECISION">记录投资理由</option></select><input id="reviewQuickSymbol" type="text" maxlength="9" placeholder="股票代码（可选）" /></div><input id="reviewQuickTitle" type="text" maxlength="120" placeholder="一句话标题" required /><textarea id="reviewQuickReason" rows="3" maxlength="4000" placeholder="写下你自己的原话；AI不会替你做决定" required></textarea><div><select id="reviewQuickCycle"><option value="NONE">暂不安排复盘</option><option value="T5">T+5复盘</option><option value="T20">T+20复盘</option><option value="CUSTOM">自定义日期</option></select><input id="reviewQuickCustomDate" type="date" class="hidden" /></div><button class="button button-primary" type="submit">保存投资日志</button></form></article>
+      </section>
+      <section class="review-flow-grid section-gap"><article class="panel"><div class="panel-heading compact"><div><p class="kicker">DUE REVIEWS</p><h2>待复盘</h2></div><button id="reviewReminderSyncButton" class="button button-ghost button-compact" type="button">刷新提醒</button></div><div id="reviewDueList" class="review-card-list"></div></article><article class="panel"><div class="panel-heading compact"><div><p class="kicker">RECENT 7 DAYS</p><h2>最近</h2></div></div><div class="review-subsection"><h3>最近决策</h3><div id="reviewDecisionList" class="review-card-list"></div></div><div class="review-subsection"><h3>完成复盘</h3><div id="reviewCompletedList" class="review-card-list"></div></div><div class="review-subsection"><h3>最近经验</h3><div id="reviewLessonList" class="review-card-list"></div></div></article><article class="panel"><div class="panel-heading compact"><div><p class="kicker">IN-APP ONLY</p><h2>今日提醒</h2></div></div><div id="reviewReminderList" class="review-card-list"></div></article></section>
+      <details class="panel advanced-fold section-gap"><summary>长期：周报、月报、历史日志与Coach总结</summary><div class="advanced-link-grid"><button type="button" data-open-workspace="personalos">个人投资操作系统</button><button type="button" data-open-workspace="overview">投资运营报告</button><button type="button" data-open-workspace="etf">持仓账本明细</button></div></details>
+    </section>
+
+    <section id="workspace-settings" class="workspace-view" data-workspace-view="settings" role="tabpanel" hidden>
+      <div class="workspace-hero settings-hero"><div><p class="kicker">SETTINGS &amp; ADVANCED TOOLS</p><h1>设置</h1><p>日常页面保持简洁；模型、数据、显示偏好、安全边界和专业工具统一从这里进入。</p></div><span class="badge badge-success">实盘始终关闭</span></div>
+      <section class="settings-grid">
+        <article class="panel"><p class="kicker">AI SETTINGS</p><h2>AI模型</h2><dl class="compact-list"><div><dt>提供商</dt><dd>DeepSeek</dd></div><div><dt>模型</dt><dd id="settingsModelName">等待读取</dd></div><div><dt>状态</dt><dd id="settingsModelStatus">等待读取</dd></div></dl><div class="button-row"><button id="settingsTestModelButton" class="button button-ghost" type="button">测试模型连接</button><button class="button button-primary" type="button" data-open-workspace="copilotadvanced">配置API Key</button></div></article>
+        <article class="panel"><p class="kicker">DATA SOURCE</p><h2>数据来源</h2><dl class="compact-list"><div><dt>行情</dt><dd id="settingsDataSource">同花顺结构化数据</dd></div><div><dt>研究状态</dt><dd id="settingsResearchState">等待同步</dd></div></dl></article>
+        <article class="panel"><p class="kicker">DISPLAY</p><h2>显示偏好</h2><label class="toggle-control"><input id="settingsShowAISummary" type="checkbox" checked /><span><strong>首页显示AI摘要</strong><small>只显示已发布、已绑定证据的报告</small></span></label></article>
+        <article class="panel"><p class="kicker">SAFETY</p><h2>安全边界</h2><ul class="safe-list"><li>live_trading_enabled=false</li><li>can_trade=false</li><li>can_create_orders=false</li><li>can_auto_remediate=false</li></ul></article>
+      </section>
+      <section class="panel section-gap"><div class="panel-heading compact"><div><p class="kicker">ADVANCED TOOLS</p><h2>高级工具</h2><p>专业研究与工程工具保留完整能力，但不占用日常主导航。</p></div></div><div class="advanced-link-grid"><button type="button" data-open-workspace="copilotadvanced">专业AI报告</button><button type="button" data-open-workspace="strategy">策略实验室</button><button type="button" data-open-workspace="quantai">AI量化研究</button><button type="button" data-open-workspace="dataintel">数据中心</button><button type="button" data-open-workspace="evolution">策略进化</button><button type="button" data-open-workspace="engineering">工程健康</button><button type="button" data-open-workspace="observability">可观测中心</button><button type="button" data-open-workspace="personalos">个人OS总控</button><button type="button" data-open-workspace="overview">投资运营中心</button></div></section>
+    </section>
+
     <section id="workspace-assistant" class="workspace-view" data-workspace-view="assistant" role="tabpanel" hidden>
-      <div class="workspace-hero assistant-hero"><div><p class="kicker">AI INVESTMENT COPILOT · EVIDENCE FIRST</p><h1>天机助手</h1><p>先读取 Data Center 与 Portfolio &amp; Risk Center 的证据，再由专职 Agent 解释；每个结论都可追溯、可评价、不可用于交易执行。</p></div><div class="copilot-hero-badges"><span class="badge badge-success">Evidence Reader</span><span class="badge badge-muted">can_trade=false</span></div></div>
+      <div class="workspace-hero assistant-hero"><div><p class="kicker">PERSONAL AI INVESTMENT ASSISTANT</p><h1>AI投资助手</h1><p>选择一个固定问题，系统只读取已保存证据并给出可追溯解释；没有正式收盘run时明确等待，不生成买卖指令。</p></div><div class="copilot-hero-badges"><span class="badge badge-success">Evidence First</span><span class="badge badge-muted">can_trade=false</span></div></div>
+      <section class="panel personal-assistant-query">
+        <form id="personalAssistantForm"><label for="personalAssistantQuestion">你想了解什么？</label><div class="assistant-query-row"><input id="personalAssistantQuestion" type="text" maxlength="300" placeholder="选择下方问题，个股问题可输入 600519.SH" /><button id="personalAssistantSubmit" class="button button-primary" type="submit">查询证据</button></div><div class="assistant-intent-grid" role="group" aria-label="五类固定投资问题"><button class="active" type="button" data-assistant-intent="daily_attention">今天该关注什么？</button><button type="button" data-assistant-intent="portfolio_analysis">我的组合风险如何？</button><button type="button" data-assistant-intent="stock_reason">为什么关注这只股票？</button><button type="button" data-assistant-intent="portfolio_fit">这只股票适合我的组合吗？</button><button type="button" data-assistant-intent="behavior_review">最近有哪些投资行为需要复盘？</button></div><label id="personalAssistantSymbolLabel" class="hidden">股票代码<input id="personalAssistantSymbol" type="text" maxlength="9" placeholder="600519.SH" pattern="\d{6}\.(SH|SZ)" /></label></form>
+      </section>
+      <section class="panel personal-assistant-answer section-gap" aria-live="polite"><div class="panel-heading compact"><div><p class="kicker">EVIDENCE-BOUND ANSWER</p><h2 id="personalAssistantHeadline">等待提问</h2><p id="personalAssistantMeta">AI只在你点击查询后调用。</p></div><span id="personalAssistantState" class="badge badge-muted">未查询</span></div><p id="personalAssistantSummary" class="assistant-answer-summary">请选择一个问题开始。</p><div class="assistant-answer-grid"><section><h3>关键依据</h3><div id="personalAssistantKeyPoints"></div></section><section><h3>风险 / 不确定性</h3><div id="personalAssistantRisks"></div></section></div><p id="personalAssistantNextAction" class="assistant-next-action"></p><details id="personalAssistantEvidence" class="assistant-evidence-fold"><summary>查看证据明细</summary><div id="personalAssistantEvidenceList"></div></details></section>
+      <section id="assistantJournalSavePanel" class="panel assistant-journal-save section-gap hidden"><p class="kicker">USER CONFIRMATION REQUIRED</p><h2>保存为投资日志</h2><p>AI回答不会自动保存，也不会冒充你的决定。请先写下你自己的原话。</p><form id="assistantJournalSaveForm" class="review-quick-form"><input id="assistantJournalUserText" type="text" maxlength="4000" placeholder="我的观察或判断是……" required /><div><select id="assistantJournalType"><option value="OBSERVE">保存为观察</option><option value="DECISION">保存为投资理由</option></select><select id="assistantJournalCycle"><option value="NONE">暂不安排复盘</option><option value="T5">T+5复盘</option><option value="T20">T+20复盘</option></select></div><button class="button button-ghost" type="submit">确认保存</button></form></section>
+      <section class="panel boundary-panel section-gap"><p class="kicker">SAFETY BOUNDARY</p><h2>助手只解释，不执行</h2><p>不会修改策略、因子权重、组合或风控，不会运行实验，不会创建模拟或真实订单。正常页面不展示内部执行角色名称。</p></section>
+    </section>
+
+    <section id="workspace-copilotadvanced" class="workspace-view" data-workspace-view="copilotadvanced" role="tabpanel" hidden>
+      <div class="workspace-hero assistant-hero"><div><p class="kicker">ADVANCED AI REPORTS · EVIDENCE FIRST</p><h1>专业AI报告与模型设置</h1><p>面向研究审计的高级报告、模型连接和长期记忆；仅从“设置 → 高级工具”进入。</p></div><div class="copilot-hero-badges"><span class="badge badge-success">Evidence Reader</span><span class="badge badge-muted">can_trade=false</span></div></div>
 
       <section class="assistant-workspace-grid">
         <article id="model" class="panel assistant-panel">
@@ -584,6 +707,7 @@
     <section id="strategyApprovalPanel" class="strategy-approval-panel hidden"><h3>人工确认</h3><p id="strategyApprovalGuidance">系统建议不改变策略状态。请输入可追溯人工身份后再提交。</p><label>审批人<input id="strategyApprovalActor" type="text" maxlength="100" placeholder="例如：本人 / 研究委员姓名" /></label><label id="strategyApprovalReasonLabel">审批理由<textarea id="strategyApprovalReason" rows="3" maxlength="1000" placeholder="说明核对过的证据、风险与决定依据"></textarea></label><div class="button-row"><button id="strategyRequestPromotionButton" class="button button-primary hidden" type="button">提交晋级申请</button><button id="strategyApprovePromotionButton" class="button button-primary hidden" type="button">人工批准</button><button id="strategyRejectPromotionButton" class="button button-danger hidden" type="button">人工拒绝</button></div></section>
     <p class="os-safety-note">系统与 AI 只能汇总证据和给出建议，不能批准、自动晋级、修改生产策略或创建订单。</p>
   </dialog>
-  <script type="module" src="/app.js?v=20260811-1"></script>
+  <dialog id="journalReviewDialog" class="investment-report-dialog journal-review-dialog" aria-labelledby="journalReviewDialogTitle"><div class="investment-report-dialog-head"><div><p class="kicker">CONFIRM BEFORE MEMORY</p><h2 id="journalReviewDialogTitle">完成一次投资复盘</h2><p id="journalReviewDialogMeta">草稿只整理事实，确认前不会保存经验。</p></div><button id="journalReviewDialogClose" class="icon-button" type="button" aria-label="关闭复盘">×</button></div><div id="journalReviewDraft" class="journal-review-draft"></div><form id="journalReviewForm" class="journal-review-form"><label>原投资逻辑现在如何？<select id="journalReviewThesis"><option value="STILL_VALID">仍成立</option><option value="WEAKENED">已减弱</option><option value="INVALIDATED">已失效</option><option value="INSUFFICIENT_EVIDENCE">证据不足</option></select></label><label>风险状态<input id="journalReviewRisk" type="text" maxlength="120" value="INSUFFICIENT_EVIDENCE" required /></label><label>结果如何？<textarea id="journalReviewResult" rows="3" maxlength="4000" required></textarea></label><label>最大错误（每行一项）<textarea id="journalReviewMistakes" rows="2" maxlength="2000"></textarea></label><label>做得好的地方（每行一项）<textarea id="journalReviewGood" rows="2" maxlength="2000"></textarea></label><label>这次应该留下什么经验？<textarea id="journalReviewLesson" rows="2" maxlength="2000"></textarea></label><button class="button button-primary" type="submit">确认并保存复盘</button></form><p class="os-safety-note">确认只写 REVIEW 和可选 LESSON；不会改变仓位、策略、风控或任何订单。</p></dialog>
+  <script type="module" src="/app.js?v=20260812-4"></script>
 </body>
 </html>

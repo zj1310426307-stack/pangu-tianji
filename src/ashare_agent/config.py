@@ -383,7 +383,16 @@ def _validate_config(raw: dict[str, Any], project_root: Path) -> None:
     _strict_bool(paper_account, "enabled", "paper_account.enabled")
     _strict_bool(paper_account, "automatic_execution", "paper_account.automatic_execution")
     paper_cash = _finite_number(paper_account, "initial_cash", "paper_account.initial_cash", minimum=0, minimum_inclusive=False)
-    paper_positions = _strict_int(paper_account, "max_positions", "paper_account.max_positions", minimum=1, maximum=targets)
+    # A value of zero means that the simulator does not impose a separate
+    # position-count cap. Exposure, cash and per-security risk limits remain
+    # mandatory, so this does not create an unlimited-risk account.
+    _paper_positions = _strict_int(
+        paper_account,
+        "max_positions",
+        "paper_account.max_positions",
+        minimum=0,
+        maximum=1000,
+    )
     target_position = _ratio(paper_account, "target_position_pct", "paper_account.target_position_pct")
     max_paper_exposure = _ratio(paper_account, "max_total_exposure_pct", "paper_account.max_total_exposure_pct")
     _ratio(paper_account, "stop_loss_pct", "paper_account.stop_loss_pct")

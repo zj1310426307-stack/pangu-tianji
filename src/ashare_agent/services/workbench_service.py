@@ -1,15 +1,20 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Any, Callable
+from zoneinfo import ZoneInfo
 
 from ..paper_portfolio import PaperPortfolio
 from .model_service import ModelService
 from .valuation_service import ValuationService
 
 
+SHANGHAI_TZ = ZoneInfo("Asia/Shanghai")
+TRUSTED_NAV_SNAPSHOT_SOURCES = frozenset({"ths_finance_snapshot"})
+
+
 class WorkbenchService:
-    """Compose the review workspace from the persistent paper account only."""
+    """Compose paper-account review and persist only verified valuation evidence."""
 
     def __init__(
         self,
@@ -19,6 +24,7 @@ class WorkbenchService:
         paper_lock: Any,
         valuation_provider: Callable[[list[str]], dict[str, Any]] | None = None,
         valuation_service: ValuationService | None = None,
+        trade_date_provider: Callable[[], date] | None = None,
     ) -> None:
         """Store paper-ledger dependencies and an optional read-only quote source."""
         self.paper = paper
@@ -27,6 +33,9 @@ class WorkbenchService:
         self.paper_lock = paper_lock
         self.valuation_provider = valuation_provider
         self.valuation_service = valuation_service or paper.valuation_service
+        self.trade_date_provider = trade_date_provider or (
+            lambda: datetime.now(SHANGHAI_TZ).date()
+        )
 
     def _valuation(self, symbols: list[str]) -> dict[str, Any]:
         """Fetch a short-lived holdings valuation without making review fragile.
@@ -38,6 +47,101 @@ class WorkbenchService:
         return self.valuation_service.market_prices(
             symbols, provider=self.valuation_provider
         )
+
+    @staticmethod
+    def _valuation_trade_date(observed_at: Any) -> date | None:
+        """Return the Shanghai observation date only for an aware timestamp."""
+        if not observed_at:
+            return None
+        try:
+            observed = datetime.fromisoformat(str(observed_at).replace("Z", "+00:00"))
+        except ValueError:
+            return None
+        if observed.tzinfo is None:
+            return None
+        return observed.astimezone(SHANGHAI_TZ).date()
+
+    def _persist_current_nav(
+        self,
+        *,
+        symbols: list[str],
+        valuation: dict[str, Any],
+        trade_date: date,
+    ) -> dict[str, str | None]:
+        """Persist same-day NAV only from a complete trusted holdings snapshot.
+
+        Workbench valuation remains usable when persistence is skipped or fails.
+        The returned state separates the current quote observation from the most
+        recent durable ``paper_nav`` date instead of collapsing both into one UI
+        label.
+        """
+        observed_at = valuation.get("observed_at")
+        valuation_date = self._valuation_trade_date(observed_at)
+        result: dict[str, str | None] = {
+            "valuation_observed_at": str(observed_at) if observed_at else None,
+            "valuation_trade_date": (
+                valuation_date.isoformat() if valuation_date is not None else None
+            ),
+            "nav_snapshot_state": "NOT_REQUIRED",
+            "nav_snapshot_message": "模拟账户当前空仓，无需持久化持仓净值。",
+        }
+        if not symbols:
+            return result
+        if bool(valuation.get("stale")):
+            result.update({
+                "nav_snapshot_state": "SKIPPED_STALE",
+                "nav_snapshot_message": "持仓行情已过期，本次只读估值不写入当日净值。",
+            })
+            return result
+        prices = {
+            str(symbol).strip().upper(): float(price)
+            for symbol, price in (valuation.get("prices") or {}).items()
+        }
+        missing = sorted(set(symbols) - set(prices))
+        if missing:
+            result.update({
+                "nav_snapshot_state": "SKIPPED_INCOMPLETE",
+                "nav_snapshot_message": (
+                    f"持仓行情缺少{len(missing)}只股票，本次只读估值不写入当日净值。"
+                ),
+            })
+            return result
+        if valuation_date != trade_date:
+            result.update({
+                "nav_snapshot_state": "SKIPPED_DATE_MISMATCH",
+                "nav_snapshot_message": (
+                    "持仓行情观察日与工作台交易日不一致，本次只读估值不写入当日净值。"
+                ),
+            })
+            return result
+        if str(valuation.get("source") or "") not in TRUSTED_NAV_SNAPSHOT_SOURCES:
+            result.update({
+                "nav_snapshot_state": "SKIPPED_UNTRUSTED",
+                "nav_snapshot_message": "持仓行情来源未获净值持久化信任，本次仅用于只读估值。",
+            })
+            return result
+        try:
+            self.paper.mark_to_market(prices, trade_date)
+        except Exception as exc:
+            # ``mark_to_market`` owns the durable write. Roll back a possible
+            # partial SQLite transaction while preserving the successful live
+            # valuation returned by this request.
+            try:
+                self.paper.conn.rollback()
+            except Exception:
+                pass
+            result.update({
+                "nav_snapshot_state": "PERSISTENCE_FAILED",
+                "nav_snapshot_message": (
+                    f"当前估值可用，但当日净值持久化失败：{str(exc)[:160]}"
+                ),
+            })
+            return result
+        result.update({
+            "nav_snapshot_state": "PERSISTED_CURRENT",
+            "nav_snapshot_message": "新鲜、完整、同日的可信持仓快照已写入当日净值。",
+        })
+        return result
 
     @staticmethod
     def _ratio_score(numerator: int, denominator: int) -> int | None:
@@ -77,8 +181,10 @@ class WorkbenchService:
         order_ids = [str(item.get("client_order_id") or "") for item in orders]
         trade_ids = {str(item.get("client_order_id") or "") for item in trades}
         filled = [item for item in orders if item.get("status") == "FILLED"]
+        max_positions = int(self.paper_config["max_positions"])
+        position_count_within_limit = max_positions == 0 or len(positions) <= max_positions
         within_limits = (
-            len(positions) <= int(self.paper_config["max_positions"])
+            position_count_within_limit
             and float(review["account"]["market_value"])
             <= float(review["account"]["equity"])
             * float(self.paper_config["max_total_exposure_pct"])
@@ -136,7 +242,7 @@ class WorkbenchService:
                     f"当前{len(positions)}只持仓；"
                     f"单股{float(self.paper_config['target_position_pct']):.0%}、"
                     f"总仓位{float(self.paper_config['max_total_exposure_pct']):.0%}、"
-                    f"最多{self.paper_config['max_positions']}只"
+                    + ("不设持仓只数上限" if max_positions == 0 else f"最多{max_positions}只")
                 ),
             ),
             self._dimension(
@@ -181,8 +287,18 @@ class WorkbenchService:
 
     def _get_unlocked(self) -> dict[str, Any]:
         """Return a recap of stocks actually held or traded by MockBroker."""
+        # Refresh the authoritative A-share T+1 availability before every account
+        # snapshot. This only releases shares acquired before the supplied date;
+        # it never creates an order or changes position quantity.
+        trade_date = self.trade_date_provider()
+        self.paper.roll_t1(trade_date)
         symbols = [str(item["symbol"]) for item in self.paper.positions()]
         valuation = self._valuation(symbols)
+        nav_snapshot = self._persist_current_nav(
+            symbols=symbols,
+            valuation=valuation,
+            trade_date=trade_date,
+        )
         review = self.paper.review(
             200,
             quotes={
@@ -247,12 +363,39 @@ class WorkbenchService:
         unknown = sum(item.get("status") == "UNKNOWN" for item in orders)
         account = review["account"]
         asset_valuation = review["asset_valuation"]
+        position_plan = [
+            {
+                "symbol": str(item["symbol"]),
+                "name": str(item.get("name") or item["symbol"]),
+                "quantity": int(item["quantity"]),
+                "available_quantity": int(item["available_quantity"]),
+                "frozen_quantity": int(item.get("frozen_quantity") or 0),
+                "sellable_quantity": int(
+                    item.get("sellable_quantity", item["available_quantity"])
+                ),
+                "pending_exit": bool(item.get("pending_exit")),
+                "next_session_action": (
+                    "PRIORITY_EXIT"
+                    if item.get("pending_exit")
+                    else "RELEASE_T1_AND_REVIEW"
+                    if int(item.get("sellable_quantity", item["available_quantity"])) <= 0
+                    else "HOLD_AND_REVIEW"
+                ),
+            }
+            for item in review["positions"]
+        ]
         flags: list[dict[str, str]] = []
         if review["valuation"].get("stale"):
             flags.append({
                 "level": "warning",
                 "code": "VALUATION_STALE",
                 "message": "持仓实时估值不可用，当前复盘已回退至最近净值或含费成本。",
+            })
+        if nav_snapshot["nav_snapshot_state"] == "PERSISTENCE_FAILED":
+            flags.append({
+                "level": "warning",
+                "code": "NAV_PERSISTENCE_FAILED",
+                "message": str(nav_snapshot["nav_snapshot_message"]),
             })
         pending = [item for item in review["positions"] if item.get("pending_exit")]
         if pending:
@@ -293,10 +436,26 @@ class WorkbenchService:
                 "message": "当前未发现账本对账、T+1、退出队列或回撤告警。",
             })
         return {
-            "version": "1.0.0",
+            "version": "1.1.0",
             "generated_at": datetime.now(timezone.utc).isoformat(),
+            "position_as_of_trade_date": trade_date.isoformat(),
+            "position_refresh_seconds": 15,
+            "settlement_rule": "A_SHARE_T_PLUS_1",
+            "next_session_plan": {
+                "scope": "all_actual_positions",
+                "position_count": len(position_plan),
+                "position_count_limit_enabled": int(self.paper_config["max_positions"]) > 0,
+                "max_positions": (
+                    int(self.paper_config["max_positions"])
+                    if int(self.paper_config["max_positions"]) > 0
+                    else None
+                ),
+                "positions": position_plan,
+                "message": "次日检查覆盖模拟账户全部实际持仓；新增买入仍受现金、仓位与风险限制。",
+            },
             "mode": "paper_portfolio_review",
             "source_nav_date": source_nav_date,
+            **nav_snapshot,
             "account": review["account"],
             "asset_valuation": asset_valuation,
             "positions": review["positions"],
