@@ -574,6 +574,7 @@
         <article id="model" class="panel assistant-panel">
           <div class="assistant-heading"><span class="brand-mark small">机</span><div><strong>DeepSeek 连接</strong><small>工具关闭 · JSON 输出 · 低温生成</small></div><span class="badge badge-muted">只读模型</span></div>
           <p id="modelState" class="model-config">读取模型配置中。</p>
+          <p id="modelConsumers" class="model-config">一次配置将供所有需要 AI 的模块共享。</p>
           <form id="deepseekForm" class="model-form" autocomplete="off"><label for="deepseekKey">DeepSeek API Key</label><input id="deepseekKey" type="password" placeholder="sk-••••••••••••••••" autocomplete="new-password" spellcheck="false" required minlength="20" maxlength="512" /><label for="deepseekModel">模型</label><select id="deepseekModel"><option value="deepseek-v4-flash">DeepSeek V4 Flash（推荐）</option><option value="deepseek-v4-pro">DeepSeek V4 Pro</option></select><button id="modelSaveButton" type="submit" class="button button-primary">保存并连接</button></form>
           <p class="secret-note">Key 只发送到本机 127.0.0.1，并保存到当前 Windows 用户环境；证据、报告、接口响应和项目文件均不会回显 Key。</p>
           <div class="button-row model-actions"><button id="modelTestButton" class="button button-ghost" type="button">测试连接</button><button id="modelClearButton" class="button button-danger" type="button">断开并清除 Key</button></div>
@@ -708,6 +709,6 @@
     <p class="os-safety-note">系统与 AI 只能汇总证据和给出建议，不能批准、自动晋级、修改生产策略或创建订单。</p>
   </dialog>
   <dialog id="journalReviewDialog" class="investment-report-dialog journal-review-dialog" aria-labelledby="journalReviewDialogTitle"><div class="investment-report-dialog-head"><div><p class="kicker">CONFIRM BEFORE MEMORY</p><h2 id="journalReviewDialogTitle">完成一次投资复盘</h2><p id="journalReviewDialogMeta">草稿只整理事实，确认前不会保存经验。</p></div><button id="journalReviewDialogClose" class="icon-button" type="button" aria-label="关闭复盘">×</button></div><div id="journalReviewDraft" class="journal-review-draft"></div><form id="journalReviewForm" class="journal-review-form"><label>原投资逻辑现在如何？<select id="journalReviewThesis"><option value="STILL_VALID">仍成立</option><option value="WEAKENED">已减弱</option><option value="INVALIDATED">已失效</option><option value="INSUFFICIENT_EVIDENCE">证据不足</option></select></label><label>风险状态<input id="journalReviewRisk" type="text" maxlength="120" value="INSUFFICIENT_EVIDENCE" required /></label><label>结果如何？<textarea id="journalReviewResult" rows="3" maxlength="4000" required></textarea></label><label>最大错误（每行一项）<textarea id="journalReviewMistakes" rows="2" maxlength="2000"></textarea></label><label>做得好的地方（每行一项）<textarea id="journalReviewGood" rows="2" maxlength="2000"></textarea></label><label>这次应该留下什么经验？<textarea id="journalReviewLesson" rows="2" maxlength="2000"></textarea></label><button class="button button-primary" type="submit">确认并保存复盘</button></form><p class="os-safety-note">确认只写 REVIEW 和可选 LESSON；不会改变仓位、策略、风控或任何订单。</p></dialog>
-  <script type="module" src="/app.js?v=20260812-4"></script>
+  <script type="module" src="/app.js?v=20260817-1"></script>
 </body>
 </html>

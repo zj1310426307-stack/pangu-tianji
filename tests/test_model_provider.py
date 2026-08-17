@@ -66,6 +66,7 @@ def test_bad_provider_json_is_sanitized(monkeypatch) -> None:
     provider = OpenAICompatibleModelProvider("https://api.example/v1", "key", "model")
     with pytest.raises(ModelProviderError):
         provider.explain(snapshot())
+    assert provider.status().state == ModelState.ERROR
 
 
 def test_model_service_forces_non_execution_flags() -> None:
@@ -127,12 +128,14 @@ def test_deepseek_chat_payload_uses_bounded_non_thinking_json(monkeypatch) -> No
     provider = OpenAICompatibleModelProvider(
         "https://api.deepseek.com", "sk-" + "x" * 30, "deepseek-v4-flash"
     )
+    assert provider.status().state == ModelState.CHECKING
     result = provider.explain_research({"candidates": []})
     assert result.summary == "ok"
     assert captured["url"] == "https://api.deepseek.com/chat/completions"
     assert captured["payload"]["thinking"] == {"type": "disabled"}
     assert captured["payload"]["response_format"] == {"type": "json_object"}
     assert captured["payload"]["max_tokens"] == 1200
+    assert provider.status().state == ModelState.CONNECTED
 
 
 def test_model_service_configures_only_after_successful_probe(monkeypatch) -> None:
@@ -171,5 +174,7 @@ def test_model_service_configures_only_after_successful_probe(monkeypatch) -> No
     )
     assert status["state"] == "connected"
     assert status["api_key_configured"] is True
+    assert status["runtime_scope"] == "shared_system"
+    assert "ai_quant_research" in status["consumer_modules"]
     assert persisted["model"] == "deepseek-v4-flash"
     assert "api_key" not in status

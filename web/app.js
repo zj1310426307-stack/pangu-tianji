@@ -522,14 +522,30 @@ function startLiveSync({ immediate = false } = {}) {
 function renderModelStatus(model) {
   const configured = Boolean(model?.api_key_configured);
   const connected = model?.state === "connected";
+  const readyForExplicitCall = configured;
   const labels = { not_configured: "未配置", checking: "检测中", connected: "已连接", error: "连接失败" };
+  const consumers = Array.isArray(model?.consumer_modules) ? model.consumer_modules : [];
+  if (state.status && model) state.status.model = { ...model };
   text("modelValue", labels[model?.state] || "未知");
   text("modelDetail", model?.message || "只读解释");
   text("modelState", configured ? `${model.model || "DeepSeek"} · ${model.message}` : "尚未配置 DeepSeek；请在下方输入 API Key。");
+  text(
+    "modelConsumers",
+    consumers.length
+      ? `一次配置，全局共享给 ${consumers.length} 个 AI 能力模块；各模块仍需你显式触发模型调用。`
+      : "一次配置将供所有需要 AI 的模块共享。",
+  );
+  text("settingsModelName", model?.model || "未配置");
+  text(
+    "settingsModelStatus",
+    connected
+      ? "已连接 · 全局共享"
+      : (configured ? `${labels[model?.state] || "已配置"} · 全局共享` : "未连接 / 不可用"),
+  );
   byId("modelTestButton").disabled = !configured;
   byId("modelClearButton").disabled = !configured;
   document.querySelectorAll("[data-copilot-report]").forEach((button) => {
-    button.disabled = !connected || !state.copilot?.status?.evidence_ready;
+    button.disabled = !readyForExplicitCall || !state.copilot?.status?.evidence_ready;
   });
   if (model?.model) byId("deepseekModel").value = model.model;
 }
@@ -1828,7 +1844,12 @@ async function loadSettingsSummary({ quiet = false } = {}) {
     ]);
     const model = status.model || {};
     text("settingsModelName", model.model || "未配置");
-    text("settingsModelStatus", model.connected || model.enabled ? "已连接" : "未连接 / 不可用");
+    text(
+      "settingsModelStatus",
+      model.state === "connected"
+        ? "已连接 · 全局共享"
+        : (model.api_key_configured ? "已配置 · 待检测 · 全局共享" : "未连接 / 不可用"),
+    );
     text("settingsDataSource", daily.data_source?.name || daily.data_source || "同花顺结构化数据");
     const formal = daily.latest_research?.run_id;
     text("settingsResearchState", formal ? `正式run · ${formal}` : "暂无正式收盘run");

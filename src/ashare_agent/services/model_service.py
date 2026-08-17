@@ -1,7 +1,7 @@
 from dataclasses import asdict
 from threading import Lock
 
-from ..core.contracts import CompletedRunSnapshot
+from ..core.contracts import CompletedRunSnapshot, SHARED_AI_CONSUMER_MODULES
 from ..model_provider import (
     DisabledModelProvider,
     ModelProvider,
@@ -30,13 +30,15 @@ class ModelService:
         self._request_lock = Lock()
 
     def status(self) -> dict:
-        """Return sanitized provider status without credentials."""
+        """Return sanitized provider and shared-runtime status without credentials."""
         payload = asdict(self.provider.status())
         payload["state"] = payload["state"].value
         payload["can_trade"] = False
         payload["api_key_configured"] = bool(
             getattr(self.provider, "api_key", "")
         )
+        payload["runtime_scope"] = "shared_system"
+        payload["consumer_modules"] = list(SHARED_AI_CONSUMER_MODULES)
         return payload
 
     def test_connection(self) -> dict:
@@ -50,6 +52,8 @@ class ModelService:
             payload["api_key_configured"] = bool(
                 getattr(self.provider, "api_key", "")
             )
+            payload["runtime_scope"] = "shared_system"
+            payload["consumer_modules"] = list(SHARED_AI_CONSUMER_MODULES)
             return payload
         finally:
             self._request_lock.release()

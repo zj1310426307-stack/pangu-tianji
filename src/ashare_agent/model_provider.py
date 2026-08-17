@@ -124,12 +124,12 @@ class OpenAICompatibleModelProvider:
         self.timeout_seconds = timeout_seconds
         self.health_path = health_path
         self._last_status = ModelProviderStatus(
-            state=ModelState.NOT_CONFIGURED,
+            state=ModelState.CHECKING,
             provider="openai_compatible",
             model=model,
             base_url=self.base_url,
             last_checked_at=None,
-            message="尚未检测连接",
+            message="已配置；等待显式调用或连接检测",
         )
 
     def status(self) -> ModelProviderStatus:
@@ -208,7 +208,7 @@ class OpenAICompatibleModelProvider:
         temperature: float = 0.0,
         max_tokens: int = 2000,
     ) -> ModelJsonCompletion:
-        """Call one tool-free, bounded JSON completion for the Copilot service."""
+        """Call bounded JSON and refresh the cached connection state from the result."""
         if not isinstance(system_prompt, str) or not system_prompt.strip():
             raise ValueError("模型系统提示词不得为空")
         if not isinstance(payload_data, dict):
@@ -246,8 +246,10 @@ class OpenAICompatibleModelProvider:
             if not isinstance(parsed, dict):
                 raise ModelProviderError("模型响应结构无效")
         except ModelProviderError:
+            self._record_completion_error("模型服务返回无效响应")
             raise
         except error.HTTPError as exc:
+            self._record_completion_error(f"连接失败：HTTP {exc.code}")
             raise ModelProviderError(f"模型服务请求失败（HTTP {exc.code}）") from exc
         except (
             error.URLError,
@@ -259,11 +261,32 @@ class OpenAICompatibleModelProvider:
             IndexError,
             TypeError,
         ) as exc:
+            self._record_completion_error(f"连接失败：{type(exc).__name__}")
             raise ModelProviderError("模型服务返回无效响应") from exc
+        completed_at = datetime.now(timezone.utc).isoformat()
+        self._last_status = ModelProviderStatus(
+            state=ModelState.CONNECTED,
+            provider="openai_compatible",
+            model=self.model,
+            base_url=self.base_url,
+            last_checked_at=completed_at,
+            message="连接正常；仅用于研究解读",
+        )
         return ModelJsonCompletion(
             content=parsed,
             model=self.model,
-            generated_at=datetime.now(timezone.utc).isoformat(),
+            generated_at=completed_at,
+        )
+
+    def _record_completion_error(self, message: str) -> None:
+        """Cache one sanitized failure so every module observes the same state."""
+        self._last_status = ModelProviderStatus(
+            state=ModelState.ERROR,
+            provider="openai_compatible",
+            model=self.model,
+            base_url=self.base_url,
+            last_checked_at=datetime.now(timezone.utc).isoformat(),
+            message=message,
         )
 
     def _chat_json(self, system_prompt: str, payload_data: dict) -> ModelExplanation:

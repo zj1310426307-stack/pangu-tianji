@@ -9979,6 +9979,18 @@
           "api_key_configured": {
             "type": "boolean",
             "title": "Api Key Configured"
+          },
+          "runtime_scope": {
+            "type": "string",
+            "const": "shared_system",
+            "title": "Runtime Scope"
+          },
+          "consumer_modules": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Consumer Modules"
           }
         },
         "type": "object",
@@ -9990,9 +10002,12 @@
           "last_checked_at",
           "message",
           "can_trade",
-          "api_key_configured"
+          "api_key_configured",
+          "runtime_scope",
+          "consumer_modules"
         ],
-        "title": "ModelStatusResponse"
+        "title": "ModelStatusResponse",
+        "description": "Expose one credential-free status shared by every AI consumer module."
       },
       "ObservabilityAcknowledgeRequest": {
         "properties": {

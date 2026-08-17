@@ -213,7 +213,10 @@ class AIQuantResearchService:
         """Call DeepSeek through ModelService and reject any ungrounded content."""
         status = self.model_service.status()
         model_version = str(status.get("model") or "disabled")
-        if status.get("state") != "connected":
+        configured = bool(status.get("api_key_configured")) or (
+            status.get("state") == "connected"
+        )
+        if not configured:
             return model_version, None, {
                 "grounded": False,
                 "reason": "model_unavailable",
