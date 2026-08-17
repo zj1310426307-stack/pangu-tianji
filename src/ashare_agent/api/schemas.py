@@ -192,6 +192,8 @@ class KillSwitchResponse(BaseModel):
 
 
 class ModelStatusResponse(BaseModel):
+    """Expose one credential-free status shared by every AI consumer module."""
+
     state: Literal["not_configured", "checking", "connected", "error"]
     provider: str
     model: str | None
@@ -200,6 +202,8 @@ class ModelStatusResponse(BaseModel):
     message: str
     can_trade: Literal[False]
     api_key_configured: bool
+    runtime_scope: Literal["shared_system"]
+    consumer_modules: list[str]
 
 
 class ModelExplanationResponse(BaseModel):

@@ -21,6 +21,21 @@ class ModelState(str, Enum):
     ERROR = "error"
 
 
+# These stable identifiers describe every user-facing module that consumes the
+# single process-wide ModelService. They are status/audit metadata only and must
+# never be interpreted as model permission to mutate research or trading state.
+SHARED_AI_CONSUMER_MODULES = (
+    "backtest_explanation",
+    "daily_research_explanation",
+    "paper_review_explanation",
+    "ai_investment_copilot",
+    "daily_investment_os",
+    "ai_quant_research",
+    "personal_ai_assistant",
+    "mobile_investment_assistant",
+)
+
+
 @dataclass(frozen=True)
 class CompletedRunSnapshot:
     """Expose a read-only completed run to model providers."""

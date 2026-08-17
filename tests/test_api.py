@@ -144,6 +144,34 @@ def test_api_exposes_safe_capabilities_only(tmp_path: Path) -> None:
         assert client.get("/", headers={"Host": "attacker.example"}).status_code == 400
 
 
+def test_all_ai_consumers_share_one_model_runtime(tmp_path: Path) -> None:
+    """Keep one configured DeepSeek runtime behind every AI-facing module."""
+    model_service = ModelService()
+    app = create_app(make_project(tmp_path), model_service=model_service)
+    with TestClient(app):
+        assert app.state.dashboard_service.model_service is model_service
+        assert app.state.workbench_service.model_service is model_service
+        assert app.state.copilot_service.model_service is model_service
+        assert app.state.quant_ai_service.model_service is model_service
+        assert app.state.investment_os_service.copilot.model_service is model_service
+        assert app.state.investment_dashboard_service.copilot.model_service is model_service
+        assert app.state.personal_ai_assistant_service.copilot.model_service is model_service
+
+        status = model_service.status()
+        assert status["runtime_scope"] == "shared_system"
+        assert set(status["consumer_modules"]) == {
+            "backtest_explanation",
+            "daily_research_explanation",
+            "paper_review_explanation",
+            "ai_investment_copilot",
+            "daily_investment_os",
+            "ai_quant_research",
+            "personal_ai_assistant",
+            "mobile_investment_assistant",
+        }
+        assert status["can_trade"] is False
+
+
 def test_web_uses_generated_openapi_client_and_scheduler_keeps_key_out() -> None:
     root = Path(__file__).resolve().parents[1]
     app_js = (root / "web" / "app.js").read_text(encoding="utf-8")
@@ -739,6 +767,8 @@ def test_deepseek_key_is_write_only_and_never_echoed(tmp_path: Path) -> None:
             "message": "连接正常；仅用于研究解读",
             "can_trade": False,
             "api_key_configured": True,
+            "runtime_scope": "shared_system",
+            "consumer_modules": ["ai_investment_copilot"],
         }
 
     service.configure_deepseek = configure

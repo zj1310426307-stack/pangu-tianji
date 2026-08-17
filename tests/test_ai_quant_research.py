@@ -175,6 +175,23 @@ class GroundedProvider:
         )
 
 
+class ConfiguredPendingProvider(GroundedProvider):
+    """Represent a persisted DeepSeek key immediately after a service restart."""
+
+    api_key = "sk-" + "p" * 30
+
+    def status(self):
+        """Remain honest about connectivity while allowing one explicit retry."""
+        return ModelProviderStatus(
+            state=ModelState.CHECKING,
+            provider="openai_compatible",
+            model="deepseek-v4-flash",
+            base_url="https://api.deepseek.com",
+            last_checked_at=None,
+            message="已配置；等待显式调用或连接检测",
+        )
+
+
 def service(tmp_path: Path, provider=None, label="POINT_IN_TIME"):
     store = ResearchMemoryStore(tmp_path / "agent.db")
     return AIQuantResearchService(
@@ -215,6 +232,16 @@ def test_disabled_model_publishes_only_deterministic_degraded_research(tmp_path)
     assert report["status"] == "degraded"
     assert report["model_analysis"]["availability"] == "unavailable_or_rejected"
     assert report["evaluation"]["deterministic"]["grounded"] is True
+
+
+def test_persisted_key_is_available_to_quant_ai_after_restart(tmp_path):
+    """Do not require a second manual connection test after loading a saved key."""
+    provider = ConfiguredPendingProvider()
+    report = service(tmp_path, provider).generate(
+        scheduled_for="2026-08-10T08:01:00+08:00"
+    )
+    assert provider.calls == 1
+    assert report["evaluation"]["model"]["grounded"] is True
 
 
 def test_synthetic_fixture_is_explicit_and_never_becomes_formal_advice(tmp_path):
